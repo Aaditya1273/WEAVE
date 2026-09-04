@@ -137,7 +137,7 @@
     .hero-in::before {
       content: ''; position: absolute; left: 50%; top: 46%;
       width: 150%; height: 130%; transform: translate(-50%, -50%);
-      background: radial-gradient(closest-side, rgba(8,8,10,.82), rgba(8,8,10,.45) 55%, transparent 100%);
+      background: radial-gradient(closest-side, rgba(8,8,10,.72), rgba(8,8,10,.34) 58%, transparent 100%);
       pointer-events: none; z-index: -1;
     }
     .hero-in { position: relative; z-index: 1; }
@@ -646,27 +646,43 @@
       ' float a=hash(i),b=hash(i+vec2(1.0,0.0)),c=hash(i+vec2(0.0,1.0)),d=hash(i+vec2(1.0,1.0));',
       ' return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);}',
       'float fbm(vec2 p){float s=0.0,a=0.5;for(int i=0;i<5;i++){s+=a*vnoise(p);p*=2.03;a*=0.5;}return s;}',
+      /* One ribbon: the upstream curtain maths, isolated so several can be
+         stacked at different heights and phases. Returns the band falloff. */
+      'float band(vec2 uv, float t, float ph, float base, float spread){',
+      '  float ripple = fbm(vec2(uv.x*uScale + t + ph, uv.y*1.6 - t*0.4));',
+      '  float drift  = fbm(vec2(uv.x*uScale*0.5 - t*0.6 + ph, 3.7));',
+      '  float centre = base + (drift-0.5)*0.34 + (ripple-0.5)*0.16;',
+      '  float dy = (uv.y - centre)/max(0.01, spread);',
+      '  float c = exp(-dy*dy);',
+      '  float streak = 0.62 + 0.38*fbm(vec2(uv.x*uScale*5.0 + t*1.6 + ph, 11.3));',
+      '  return c*streak;',
+      '}',
       'void main(){',
       ' vec2 uv = gl_FragCoord.xy / uRes;',
-      /* Rotate the curtain about centre so the bands run diagonally, the way
-         they do on the reference site. Aspect-corrected so it never skews. */
       ' float ar = uRes.x / max(1.0, uRes.y);',
       ' vec2 p = uv - 0.5; p.x *= ar;',
       ' float cs = cos(uRot), sn = sin(uRot);',
       ' p = vec2(p.x*cs - p.y*sn, p.x*sn + p.y*cs);',
       ' p.x /= ar; uv = p + 0.5;',
       ' float t = uTime * 0.08;',
-      ' float ripple = fbm(vec2(uv.x*uScale + t, uv.y*1.6 - t*0.4));',
-      ' float drift  = fbm(vec2(uv.x*uScale*0.5 - t*0.6, 3.7));',
-      ' float centre = 0.52 + (drift-0.5)*0.5 + (ripple-0.5)*0.22;',
-      ' float dy = (uv.y - centre) / max(0.01, uSpread);',
-      ' float curtain = exp(-dy*dy);',
-      ' float streak = 0.65 + 0.35*fbm(vec2(uv.x*uScale*6.0 + t*1.7, 11.3));',
-      ' curtain *= streak;',
+      /* Three ribbons at different heights, phases and widths. Distinct
+         bands are what make it read as silk rather than fog. */
+      ' float b1 = band(uv, t,  0.0, 0.26, uSpread);',
+      ' float b2 = band(uv, t, 17.3, 0.44, uSpread*0.72);',
+      ' float b3 = band(uv, t, 41.7, 0.60, uSpread*1.25);',
       ' float m1 = clamp(fbm(vec2(uv.x*uScale*1.3 + t*0.9, 21.1)), 0.0, 1.0);',
-      ' float m2 = clamp(ripple, 0.0, 1.0);',
-      ' vec3 tint = mix(mix(uA,uB,m1), uC, m2*0.38);',
-      ' gl_FragColor = vec4(uBg + tint*curtain*uIntensity, 1.0);',
+      ' vec3 tintA = mix(uA, uB, m1);',
+      ' vec3 tintB = mix(uB, uC, m1);',
+      /* Coloured bloom across the whole band, plus a hot near-white core from
+         a high power of the same falloff — that pairing is what gives the
+         reference its bright centre line with a colour rim. */
+      ' vec3 col = uBg;',
+      ' col += tintA * b1 * uIntensity;',
+      ' col += tintB * b2 * uIntensity * 0.9;',
+      ' col += mix(uA, uC, 0.5) * b3 * uIntensity * 0.6;',
+      ' float core = pow(b1, 5.0) + pow(b2, 5.0)*0.9 + pow(b3, 6.0)*0.5;',
+      ' col += vec3(0.92, 0.90, 0.94) * core * uIntensity * 0.95;',
+      ' gl_FragColor = vec4(col, 1.0);',
       '}'
     ].join('\n');
 
@@ -703,15 +719,15 @@
         .forEach(function (n) { u[n] = gl.getUniformLocation(prog, n); });
 
       /* WEAVE palette: accent orange into violet, with a warm highlight. */
-      var A = rgb('#ff6a4d'), B = rgb('#a78bfa'), C = rgb('#ff8f6b'), BG = rgb('#08080a');
+      var A = rgb('#ff6a4d'), B = rgb('#a78bfa'), C = rgb('#e879f9'), BG = rgb('#08080a');
       gl.uniform3f(u.uA, A[0], A[1], A[2]);
       gl.uniform3f(u.uB, B[0], B[1], B[2]);
       gl.uniform3f(u.uC, C[0], C[1], C[2]);
       gl.uniform3f(u.uBg, BG[0], BG[1], BG[2]);
-      gl.uniform1f(u.uScale, 2.6);
-      gl.uniform1f(u.uSpread, 0.13);
-      gl.uniform1f(u.uIntensity, 0.78);
-      gl.uniform1f(u.uRot, -0.20);
+      gl.uniform1f(u.uScale, 2.2);
+      gl.uniform1f(u.uSpread, 0.070);
+      gl.uniform1f(u.uIntensity, 0.95);
+      gl.uniform1f(u.uRot, -0.16);
 
       /* A background layer nobody inspects closely does not need 3x pixels. */
       var dpr = Math.min(1.5, window.devicePixelRatio || 1);
