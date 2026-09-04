@@ -104,6 +104,32 @@ test.describe('WEAVE — human and agent author the same site', () => {
       .toContainText('Objects for slow rooms');
   });
 
+  test('an agent restyle actually repaints the canvas', async ({ page }) => {
+    // Regression: a human style edit patches the canvas DOM imperatively AND
+    // queues the mutation, so the flush gate skips a redundant render. An agent
+    // only queues — nothing patched the DOM — and the gate skipped anyway, so
+    // the code changed while the canvas kept its old paint. Restyles looked
+    // like they did nothing until the next page switch.
+    const ctx = await runTool(page, 'weave_get_context', {});
+    const section = ctx.sections[1];
+
+    await runTool(page, 'weave_update_element', {
+      element_id: section.id, styles: { backgroundColor: 'rgb(11, 11, 13)' },
+    });
+
+    const frame = page.frames().find((f) => f.url().includes('5174'))!;
+    await expect.poll(
+      () => frame.evaluate(
+        (id) => {
+          const el = document.querySelector(`[data-node-id="${id}"]`);
+          return el ? getComputedStyle(el).backgroundColor : null;
+        },
+        section.id,
+      ),
+      { timeout: 10_000 },
+    ).toBe('rgb(11, 11, 13)');
+  });
+
   test('a multi-operation proposal is reviewed, amended and committed atomically', async ({ page }) => {
     const ctx = await runTool(page, 'weave_get_context', {});
     const heading = findByType(ctx.tree[0], 'heading')!;

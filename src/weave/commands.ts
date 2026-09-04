@@ -28,6 +28,7 @@ import { projectFS, projectVersionAtom } from '@/code/project/project-fs';
 import { activeFilePathAtom } from '@/code/project/active-file-store';
 import { dragStateOps } from '@/canvas/drag/drag-state-store';
 import { insertSectionBlueprint } from '@/canvas/section-insert';
+import { forceRenderAfterExternalEdit } from '@/canvas/node-ops';
 import { getSectionBlueprint } from '@/shared/sections-library';
 import type { CanvasNode } from '@/code/parsing/parser';
 import { trace } from '@/shared/debug-trace';
@@ -348,41 +349,64 @@ export function amendOperationValue(operation: WeaveOperation, value: string): W
  * structured result; never throws. Callers that need atomicity across several
  * operations use `applyOperations`.
  */
-export function executeOperation(operation: WeaveOperation): CommandResult {
+/**
+ * Repaint the canvas after an agent write.
+ *
+ * A HUMAN style edit patches the canvas DOM imperatively (node-ops) *and*
+ * queues the mutation, so the flush gate correctly skips a second render. An
+ * agent only queues — nothing patched the DOM — yet the gate still classes
+ * `updateStyles` as already-painted and skips. The code was updated and the
+ * canvas kept the old paint, so a restyle looked like it did nothing until the
+ * next page switch. This is the same escape hatch the panels use when they
+ * write outside the imperative path; it is idempotent and safe to over-call.
+ */
+function repaintAfterAgentWrite(op: WeaveOperationKind): void {
+  forceRenderAfterExternalEdit('weave:agent-edit', { op });
+}
+
+export function executeOperation(
+  operation: WeaveOperation,
+  /** Batch callers defer the repaint and do it once after the whole set. */
+  opts: { deferRender?: boolean } = {},
+): CommandResult {
   const invalid = validateOperation(operation);
   if (invalid) return { ok: false, error: invalid };
   syncQueueToActiveFile();
   trace.action('weave:command', { op: operation.op });
+  const done = (r: CommandResult): CommandResult => {
+    if (r.ok && !opts.deferRender) repaintAfterAgentWrite(operation.op);
+    return r;
+  };
 
   switch (operation.op) {
     case 'update_text':
-      return viaExecutor('update_node_text', { nodeId: operation.target, text: operation.value });
+      return done(viaExecutor('update_node_text', { nodeId: operation.target, text: operation.value }));
     case 'update_style':
-      return viaExecutor('update_node_styles', { nodeId: operation.target, styles: operation.styles });
+      return done(viaExecutor('update_node_styles', { nodeId: operation.target, styles: operation.styles }));
     case 'update_attrs':
-      return viaExecutor('update_html_attrs', { nodeId: operation.target, attrs: operation.attrs });
+      return done(viaExecutor('update_html_attrs', { nodeId: operation.target, attrs: operation.attrs }));
     case 'rename':
-      return viaExecutor('rename_node', { nodeId: operation.target, name: operation.name });
+      return done(viaExecutor('rename_node', { nodeId: operation.target, name: operation.name }));
     case 'set_visible':
       // Empty string DELETES the property (upstream invariant #3), so showing
       // an element removes `display:none` rather than guessing a display value.
-      return viaExecutor('update_node_styles', { nodeId: operation.target, styles: { display: operation.visible ? '' : 'none' } });
+      return done(viaExecutor('update_node_styles', { nodeId: operation.target, styles: { display: operation.visible ? '' : 'none' } }));
     case 'move': {
       if (operation.parent) {
-        return viaExecutor('move_node', {
+        return done(viaExecutor('move_node', {
           nodeId: operation.target, newParentId: operation.parent,
           ...(typeof operation.index === 'number' ? { index: Math.max(0, Math.floor(operation.index)) } : {}),
-        });
+        }));
       }
       const parentId = getNode(operation.target)!.parentId!;
-      return viaExecutor('reorder_node', { nodeId: operation.target, parentId, index: Math.max(0, Math.floor(operation.index!)) });
+      return done(viaExecutor('reorder_node', { nodeId: operation.target, parentId, index: Math.max(0, Math.floor(operation.index!)) }));
     }
     case 'delete': {
       const result = viaExecutor('remove_node', { nodeId: operation.target });
       if (result.ok) {
         store.set(selectedIdsAtom, store.get(selectedIdsAtom).filter((id) => id !== operation.target));
       }
-      return result;
+      return done(result);
     }
     case 'add_section': {
       const blueprintId = SECTION_TYPE_TO_BLUEPRINT[operation.sectionType];
@@ -406,7 +430,7 @@ export function executeOperation(operation: WeaveOperation): CommandResult {
       // Select what was just created — the human immediately sees WHERE the
       // agent worked.
       store.set(selectedIdsAtom, created);
-      return { ok: true, detail: { created } };
+      return done({ ok: true, detail: { created } });
     }
   }
 }
@@ -428,7 +452,7 @@ export function applyOperations(operations: WeaveOperation[]): {
   const snapshot = projectFS.getSnapshot();
   const results: CommandResult[] = [];
   for (let i = 0; i < operations.length; i++) {
-    const result = executeOperation(operations[i]);
+    const result = executeOperation(operations[i], { deferRender: true });
     results.push(result);
     if (!result.ok) {
       // ROLLBACK — restore every file, then re-seed the mutation queue from the
@@ -445,5 +469,7 @@ export function applyOperations(operations: WeaveOperation[]): {
       return { ok: false, results, failedIndex: i, error: result.error };
     }
   }
+  // One repaint for the whole transaction rather than per operation.
+  if (operations.length > 0) repaintAfterAgentWrite(operations[operations.length - 1].op);
   return { ok: true, results };
 }
