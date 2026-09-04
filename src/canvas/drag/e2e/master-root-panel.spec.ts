@@ -70,7 +70,7 @@ test('master root selection paths keep the Properties panel alive', async ({ pag
     window.localStorage.setItem('revyme-project-local', JSON.stringify(data));
     window.localStorage.setItem('revyme-onboarding-completed', 'true');
   }, project);
-  await page.goto('/');
+  await page.goto('/app/');
   const editor = new EditorPage(page);
   await editor.sandbox().locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 30_000 });
 

@@ -173,12 +173,19 @@ npm install
 npm run dev        # editor :3333, canvas sandbox :5174, preview :5175
 ```
 
-Open <http://localhost:3333>. A fresh standalone session boots on **EMBER**, a hand-built
-ceramics storefront (hero, products, features, testimonials, FAQ, call to action, footer)
-across three breakpoints, focused on the hero at a readable zoom. The first icon in the
-left rail is **WEAVE Agent**. Node ≥ 22.
+Two routes, identical in development and production:
 
-Open the Inspector directly with <http://localhost:3333/?weave=inspector>.
+| Route | What it serves |
+|---|---|
+| `/` | The landing page — static HTML, no framework, explains WEAVE and links into the editor |
+| `/app/` | The editor itself |
+
+Open <http://localhost:3333>, then **Open the editor**. A fresh standalone session boots on
+**EMBER**, a hand-built ceramics storefront (hero, products, features, testimonials, FAQ,
+call to action, footer) across three breakpoints, focused on the hero at a readable zoom.
+The first icon in the left rail is **WEAVE Agent**. Node ≥ 22.
+
+Open the Inspector directly with <http://localhost:3333/app/?weave=inspector>.
 
 ## 10. Production / Vercel deployment
 
@@ -189,7 +196,10 @@ single-origin layout so a static host can serve all of them:
 npm run build:vercel   # → dist/ (editor), dist/sandbox/, dist/preview-sandbox/
 ```
 
-`vercel.json` runs that command and serves `dist/`. Iframe URLs come from
+The build has two HTML entries — `index.html` (landing) and `app/index.html` (editor) —
+producing `dist/index.html` and `dist/app/index.html`. `vercel.json` runs the build, serves
+`dist/`, rewrites `/app/*` to the editor shell, and keeps `noindex` scoped to the app and
+iframe paths so the landing page stays indexable. Iframe URLs come from
 `VITE_SANDBOX_URL=/sandbox` and `VITE_PREVIEW_URL=/preview-sandbox` (set by the script), so
 nothing depends on localhost ports. Deploy with `vercel --prod`, or import the repository
 in the Vercel dashboard with no framework preset.
@@ -253,7 +263,8 @@ additions are released under the same license.
 | EMBER starter project, first-run camera and naming | `src/weave/starter-project.ts`, `src/weave/first-run.ts`, one branch in `src/ProjectLoader.tsx` |
 | Published-site agent runtime and capability manifest | `src/weave/manifest.ts` |
 | Single-origin deployment | `vercel.json`, `build:vercel`, `base` support in the two iframe Vite configs |
-| Branding | `index.html`, `src/editor/header/LeftHeader.tsx`, `package.json` |
+| Landing page and route split (`/` landing, `/app/` editor) | `index.html`, `app/index.html`, two-entry build in `vite.config.ts`, `vercel.json` |
+| Branding | `app/index.html`, `src/editor/header/LeftHeader.tsx`, `package.json` |
 | Test harness shim for Node ≥ 22 `localStorage`; upstream lint-debt cleanup | `src/test-setup.ts`, `vitest.config.ts`, 34 upstream files (mechanical) |
 
 **Deliberately not built**, to keep the core solid: Shopify connectors, multiple deployment

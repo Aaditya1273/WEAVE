@@ -1,33 +1,350 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <!-- Same icon set as the landing and cloud apps (transparent mark, accent
-       lower shape) so every Revyme surface shows one favicon. The apple-touch
-       icon keeps the opaque dark tile — iOS renders home-screen icons without
-       alpha. Vite rewrites these against the `/builder/` base.
-
-       ?v= is a cache-buster, not decoration: Chrome keeps favicons in a store
-       keyed by URL and does NOT refetch on a hard reload, so replacing the
-       file alone leaves existing tabs on the old icon. Bump it when the
-       artwork changes. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WEAVE — the website builder built for humans and agents</title>
+  <meta name="description" content="A visual website builder where a person and an AI agent author the same site through WebMCP. Structured context, reviewable change proposals, and a human approval gate before anything ships." />
   <link rel="icon" href="/favicon.ico?v=2" sizes="48x48" />
   <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png?v=2" />
   <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png?v=2" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Private app shell (the editor) — keep every route out of search. -->
-  <meta name="robots" content="noindex, nofollow" />
-  <title>WEAVE — Human + Agent Website Builder</title>
-  <meta name="description" content="WEAVE: the website builder built for humans and agents. Build visually. Direct your agent. Publish an agent-ready website." />
+  <meta property="og:title" content="WEAVE — the website builder built for humans and agents" />
+  <meta property="og:description" content="Build visually. Direct your agent. Publish an agent-ready website." />
+  <meta property="og:type" content="website" />
   <style>
-    #root { height: 100vh; }
-    .selected-node-highlight { background: rgba(99, 102, 241, 0.12) !important; }
+    /* Self-contained: no webfonts, no frameworks, no build step. The landing
+       page must paint instantly and never depend on a CDN. */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    :root {
+      --ink:        #f4f2ef;
+      --ink-dim:    rgba(244, 242, 239, 0.62);
+      --ink-faint:  rgba(244, 242, 239, 0.38);
+      --bg:         #0b0b0c;
+      --bg-raised:  #121214;
+      --line:       rgba(244, 242, 239, 0.12);
+      --accent:     #e8654f;
+      --green:      #10b981;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --measure: 1180px;
+    }
+
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      * { animation: none !important; transition: none !important; }
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: inherit; }
+    .wrap { width: 100%; max-width: var(--measure); margin: 0 auto; padding: 0 28px; }
+
+    /* Skip link — keyboard users reach the content without tabbing the nav. */
+    .skip {
+      position: absolute; left: -9999px; top: 0; z-index: 100;
+      background: var(--ink); color: var(--bg); padding: 10px 16px; font-size: 14px;
+    }
+    .skip:focus { left: 12px; top: 12px; }
+
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+    /* ── Nav ─────────────────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(11, 11, 12, 0.82);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--line);
+    }
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 62px; gap: 24px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+    .brand-name { font-size: 14px; font-weight: 600; letter-spacing: 0.16em; }
+    .nav-links { display: flex; align-items: center; gap: 26px; }
+    /* `:not(.btn)` matters: without it this rule out-specifies `.btn-primary`
+       and paints the nav CTA's label in --ink-dim on a near-white button,
+       i.e. invisible. */
+    .nav-links a:not(.btn) { font-size: 13px; color: var(--ink-dim); text-decoration: none; transition: color .15s; }
+    .nav-links a:not(.btn):hover { color: var(--ink); }
+    @media (max-width: 720px) { .nav-links .hide-sm { display: none; } }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 18px; font-size: 14px; font-weight: 500;
+      text-decoration: none; border: 1px solid transparent; white-space: nowrap;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .btn-primary { background: var(--ink); color: var(--bg); }
+    .btn-primary:hover { background: #fff; }
+    .btn-ghost { border-color: var(--line); color: var(--ink); }
+    .btn-ghost:hover { border-color: var(--ink-faint); }
+
+    /* ── Hero ────────────────────────────────────────────────────────── */
+    header.hero { padding: 108px 0 86px; border-bottom: 1px solid var(--line); }
+    .eyebrow {
+      font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em;
+      color: var(--ink-faint); text-transform: uppercase; margin: 0 0 26px;
+    }
+    h1 {
+      margin: 0; font-size: clamp(40px, 6.4vw, 76px); line-height: 1.02;
+      letter-spacing: -0.035em; font-weight: 500; max-width: 15ch;
+    }
+    .lede {
+      margin: 26px 0 0; font-size: clamp(17px, 2vw, 20px);
+      line-height: 1.55; color: var(--ink-dim); max-width: 56ch;
+    }
+    .hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 38px; }
+    .hero-note { margin: 20px 0 0; font-size: 13px; color: var(--ink-faint); }
+
+    /* ── The loop ────────────────────────────────────────────────────── */
+    section { padding: 84px 0; border-bottom: 1px solid var(--line); }
+    h2 {
+      margin: 0 0 14px; font-size: clamp(26px, 3.4vw, 38px);
+      line-height: 1.12; letter-spacing: -0.02em; font-weight: 500;
+    }
+    .section-lede { margin: 0 0 44px; color: var(--ink-dim); max-width: 62ch; font-size: 16.5px; }
+
+    .loop { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    .loop-step { background: var(--bg); padding: 24px 22px 26px; }
+    .loop-who {
+      font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em;
+      text-transform: uppercase; margin: 0 0 10px;
+    }
+    .who-human { color: var(--accent); }
+    .who-agent { color: var(--green); }
+    .who-weave { color: var(--ink-faint); }
+    .loop-step h3 { margin: 0 0 8px; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+    /* `:not(.loop-who)` matters: the bare `.loop-step p` selector out-specifies
+       the single-class role colours below and flattened HUMAN / AGENT / WEAVE
+       to one grey — losing the whole point of the diagram. */
+    .loop-step p:not(.loop-who) { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink-dim); }
+
+    /* ── Differentiators ─────────────────────────────────────────────── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); gap: 26px; }
+    .card { border-top: 1px solid var(--line); padding-top: 20px; }
+    .card-num { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin: 0 0 12px; }
+    .card h3 { margin: 0 0 10px; font-size: 17px; font-weight: 600; letter-spacing: -0.015em; }
+    .card p { margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--ink-dim); }
+
+    /* ── Tools ───────────────────────────────────────────────────────── */
+    .tools { border: 1px solid var(--line); overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 620px; }
+    th, td { text-align: left; padding: 13px 20px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); font-weight: 400; }
+    tbody tr:last-child td { border-bottom: none; }
+    td.name { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+    td.desc { color: var(--ink-dim); }
+    .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+    .tag-read { color: var(--ink-faint); }
+    .tag-write { color: var(--accent); }
+    .tag-destructive { color: #ef4444; }
+    .tag-gated { color: var(--green); }
+
+    /* ── Honesty panel ───────────────────────────────────────────────── */
+    .honest { background: var(--bg-raised); border: 1px solid var(--line); padding: 28px 30px; }
+    .honest h3 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+    .honest ul { margin: 0; padding-left: 18px; color: var(--ink-dim); font-size: 14.5px; line-height: 1.7; }
+    .honest li { margin-bottom: 6px; }
+
+    /* ── Footer ──────────────────────────────────────────────────────── */
+    footer { padding: 52px 0 68px; }
+    .foot { display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; align-items: flex-start; }
+    .foot p { margin: 0; font-size: 13px; color: var(--ink-faint); max-width: 52ch; line-height: 1.6; }
+    .foot a { color: var(--ink-dim); }
   </style>
 </head>
 <body>
-  <div id="root"></div>
-  <script type="module" src="/src/main.tsx"></script>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <nav>
+    <div class="wrap nav-inner">
+      <a class="brand" href="/" aria-label="WEAVE home">
+        <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="1" y="1" width="22" height="22" rx="5" fill="#f4f2ef" />
+          <path d="M5 7l3 10 4-7 4 7 3-10" fill="none" stroke="#0b0b0c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="brand-name">WEAVE</span>
+      </a>
+      <div class="nav-links">
+        <a class="hide-sm" href="#loop">How it works</a>
+        <a class="hide-sm" href="#tools">Tools</a>
+        <a class="hide-sm" href="https://github.com/Aaditya1273/WEAVE" rel="noopener">GitHub</a>
+        <a class="btn btn-primary" href="/app/">Open the editor</a>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main">
+    <header class="hero">
+      <div class="wrap">
+        <p class="eyebrow">Human + Agent Website Builder</p>
+        <h1>The website builder built for humans and agents.</h1>
+        <p class="lede">
+          Build visually. Direct your agent. Publish an agent-ready website.
+          WEAVE is a real visual editor where a person and an AI agent author the
+          same live project through WebMCP — with structured context, reviewable
+          proposals, and a human approval gate before anything ships.
+        </p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="/app/">Open the editor</a>
+          <a class="btn btn-ghost" href="/app/?weave=inspector">Inspect the WebMCP layer</a>
+        </div>
+        <p class="hero-note">
+          Opens a live demo storefront in your browser. Nothing to install, no account.
+        </p>
+      </div>
+    </header>
+
+    <section id="loop">
+      <div class="wrap">
+        <h2>One project. Two authors.</h2>
+        <p class="section-lede">
+          The agent never guesses from pixels and never edits behind your back. It reads
+          the same structured model the canvas renders from, and proposes work you approve.
+        </p>
+        <div class="loop">
+          <div class="loop-step">
+            <p class="loop-who who-human">Human</p>
+            <h3>Edit on a real canvas</h3>
+            <p>Drag, type, restyle. Every edit becomes a new project revision.</p>
+          </div>
+          <div class="loop-step">
+            <p class="loop-who who-agent">Agent</p>
+            <h3>Read structured context</h3>
+            <p>Typed sections, stable element ids, your current selection — not a DOM dump.</p>
+          </div>
+          <div class="loop-step">
+            <p class="loop-who who-agent">Agent</p>
+            <h3>Propose a change set</h3>
+            <p>Several related edits arrive as one reviewable proposal. The canvas does not move.</p>
+          </div>
+          <div class="loop-step">
+            <p class="loop-who who-human">Human</p>
+            <h3>Amend, skip, apply</h3>
+            <p>Rewrite a value, drop an operation, apply the rest. One undo reverses it all.</p>
+          </div>
+          <div class="loop-step">
+            <p class="loop-who who-weave">WEAVE</p>
+            <h3>Gate the publish</h3>
+            <p>An agent can request a publish. Only your click performs one.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>What makes it different</h2>
+        <p class="section-lede">
+          Most agent integrations bolt a chatbot onto an editor. WEAVE treats the agent as a
+          second author with real boundaries.
+        </p>
+        <div class="cards">
+          <div class="card">
+            <p class="card-num">01</p>
+            <h3>Transactions, not one-off edits</h3>
+            <p>
+              “Make this homepage feel more premium” becomes one proposal containing five
+              operations. You see each one’s before and after, edit the copy you disagree with,
+              skip what you don’t want — and the rest commits atomically as a single revision.
+            </p>
+          </div>
+          <div class="card">
+            <p class="card-num">02</p>
+            <h3>Concurrency you can trust</h3>
+            <p>
+              Every proposal is pinned to the revision the agent was reasoning about. If you
+              edit the page first, the proposal is refused as stale instead of being applied
+              to state the agent never saw. Your work is never silently overwritten.
+            </p>
+          </div>
+          <div class="card">
+            <p class="card-num">03</p>
+            <h3>One pipeline for both authors</h3>
+            <p>
+              A human drag and an agent move produce the same mutation, the same generated
+              source and the same undo entry. There is no second write path, so there is no
+              class of change only one of you can make or reverse.
+            </p>
+          </div>
+          <div class="card">
+            <p class="card-num">04</p>
+            <h3>Agent-ready output</h3>
+            <p>
+              Publishing produces your real Next.js source plus a capability manifest and a
+              small runtime, so the site you ship can expose its own structure to the next
+              agent. No proprietary format, no lock-in.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tools">
+      <div class="wrap">
+        <h2>The WebMCP surface</h2>
+        <p class="section-lede">
+          Nine typed tools, registered with the browser’s model-context runtime. Descriptions
+          state product intent; annotations declare real consequences.
+        </p>
+        <div class="tools">
+          <table>
+            <thead>
+              <tr><th scope="col">Tool</th><th scope="col">Access</th><th scope="col">What it does</th></tr>
+            </thead>
+            <tbody>
+              <tr><td class="name">weave_get_context</td><td><span class="tag tag-read">read</span></td><td class="desc">Page, revision, selection, typed sections, bounded element tree</td></tr>
+              <tr><td class="name">weave_get_selection</td><td><span class="tag tag-read">read</span></td><td class="desc">Full detail for the element you have selected</td></tr>
+              <tr><td class="name">weave_add_section</td><td><span class="tag tag-write">write</span></td><td class="desc">Insert a designed section from the shared library</td></tr>
+              <tr><td class="name">weave_update_element</td><td><span class="tag tag-write">write</span></td><td class="desc">Text, name, visibility, safe styles and attributes</td></tr>
+              <tr><td class="name">weave_move_element</td><td><span class="tag tag-write">write</span></td><td class="desc">Reorder or re-parent a section or element</td></tr>
+              <tr><td class="name">weave_delete_element</td><td><span class="tag tag-destructive">destructive</span></td><td class="desc">Remove an element and its children</td></tr>
+              <tr><td class="name">weave_propose_changes</td><td><span class="tag tag-gated">human review</span></td><td class="desc">Submit several edits as one reviewable proposal</td></tr>
+              <tr><td class="name">weave_validate_site</td><td><span class="tag tag-read">read</span></td><td class="desc">Real findings plus an explainable agent-readiness score</td></tr>
+              <tr><td class="name">weave_publish_site</td><td><span class="tag tag-gated">human approval</span></td><td class="desc">Request a publish — only your click performs one</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="honest">
+          <h3>Where this actually stands</h3>
+          <ul>
+            <li>WebMCP is an emerging browser API. If your browser exposes no runtime, the editor says so plainly — the tools remain usable through the built-in developer console, which calls the identical implementations.</li>
+            <li>Agent context is pull-based. WEAVE bumps a revision on every change and agents re-read; it does not pretend to push page content the shipping API cannot push.</li>
+            <li>“Publish” here means persist and download a complete, agent-ready bundle. No third-party deployment provider is contacted or simulated.</li>
+            <li>The runtime shipped with a published site is read-only plus same-site navigation, by design.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <p>
+        WEAVE is a derivative work of <a href="https://github.com/Aaditya1273/WEAVE" rel="noopener">Revyme</a>,
+        an open-source visual web builder. Licensed under AGPL-3.0; upstream copyright and
+        attribution are preserved in the repository’s <span style="font-family:var(--mono)">NOTICE</span>.
+      </p>
+      <div class="nav-links">
+        <a href="https://github.com/Aaditya1273/WEAVE" rel="noopener">GitHub</a>
+        <a href="/app/">Open the editor</a>
+      </div>
+    </div>
+  </footer>
 </body>
 </html>
