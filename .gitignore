@@ -26,6 +26,8 @@ playwright-report/
 lessons/
 docs/*
 !docs/readme/
+!docs/proof/
+!docs/UPSTREAM-README.md
 plans/
 todo/
 refactor-plan/
@@ -33,3 +35,4 @@ before-oss-refactor/
 oss-release-plan/
 
 .DS_Store
+.vercel
