@@ -12,172 +12,254 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
   <meta property="og:title" content="WEAVE — the website builder built for humans and agents" />
   <meta property="og:description" content="Build visually. Direct your agent. Publish an agent-ready website." />
+  <meta property="og:image" content="/marketing/hero-editor.webp" />
   <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
   <style>
-    /* Self-contained: no webfonts, no frameworks, no build step. The landing
-       page must paint instantly and never depend on a CDN. */
+    /* Self-contained: no webfonts, no frameworks, no build step — the page
+       paints instantly and never depends on a CDN. */
     *, *::before, *::after { box-sizing: border-box; }
 
     :root {
-      --ink:        #f4f2ef;
-      --ink-dim:    rgba(244, 242, 239, 0.62);
-      --ink-faint:  rgba(244, 242, 239, 0.38);
-      --bg:         #0b0b0c;
-      --bg-raised:  #121214;
-      --line:       rgba(244, 242, 239, 0.12);
-      --accent:     #e8654f;
-      --green:      #10b981;
-      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      --measure: 1180px;
+      --ink:       #f5f3f0;
+      --dim:       rgba(245, 243, 240, 0.64);
+      --faint:     rgba(245, 243, 240, 0.40);
+      --ghost:     rgba(245, 243, 240, 0.16);
+      --bg:        #08080a;
+      --raised:    #101013;
+      --line:      rgba(245, 243, 240, 0.10);
+      --line-soft: rgba(245, 243, 240, 0.06);
+      --accent:    #ff6a4d;
+      --green:     #10b981;
+      --violet:    #a78bfa;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+      --max: 1200px;
+      --pad: 32px;
     }
 
     html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
-    @media (prefers-reduced-motion: reduce) {
-      html { scroll-behavior: auto; }
-      * { animation: none !important; transition: none !important; }
-    }
-
     body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--ink);
-      font-family: var(--sans);
-      font-size: 16px;
-      line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
+      margin: 0; background: var(--bg); color: var(--ink);
+      font-family: var(--sans); font-size: 16px; line-height: 1.6;
+      -webkit-font-smoothing: antialiased; overflow-x: hidden;
     }
-
     a { color: inherit; }
-    .wrap { width: 100%; max-width: var(--measure); margin: 0 auto; padding: 0 28px; }
+    /* `height: auto` is load-bearing: the width/height attributes below pin an
+       intrinsic size for layout stability, and without this the height stays
+       pinned while the width shrinks — every screenshot renders stretched. */
+    img { max-width: 100%; height: auto; display: block; }
+    .wrap { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 var(--pad); }
+    @media (max-width: 640px) { :root { --pad: 20px; } }
 
-    /* Skip link — keyboard users reach the content without tabbing the nav. */
-    .skip {
-      position: absolute; left: -9999px; top: 0; z-index: 100;
-      background: var(--ink); color: var(--bg); padding: 10px 16px; font-size: 14px;
-    }
+    .skip { position: absolute; left: -9999px; z-index: 200; background: var(--ink); color: var(--bg); padding: 10px 16px; }
     .skip:focus { left: 12px; top: 12px; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
 
-    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
-    /* ── Nav ─────────────────────────────────────────────────────────── */
-    nav {
-      position: sticky; top: 0; z-index: 50;
-      background: rgba(11, 11, 12, 0.82);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--line);
+    /* ── Reveal on scroll (progressive; static if unsupported) ─────────── */
+    @supports (animation-timeline: view()) {
+      @media (prefers-reduced-motion: no-preference) {
+        .reveal {
+          animation: rise linear both;
+          animation-timeline: view();
+          animation-range: entry 8% entry 62%;
+        }
+        @keyframes rise {
+          from { opacity: .25; transform: translateY(20px); }
+          to   { opacity: 1; transform: none; }
+        }
+      }
     }
-    .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 62px; gap: 24px; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+    /* ── Nav ───────────────────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 60;
+      background: color-mix(in srgb, var(--bg) 78%, transparent);
+      backdrop-filter: saturate(160%) blur(14px);
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .nav-in { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 24px; }
     .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
-    .brand-name { font-size: 14px; font-weight: 600; letter-spacing: 0.16em; }
-    .nav-links { display: flex; align-items: center; gap: 26px; }
-    /* `:not(.btn)` matters: without it this rule out-specifies `.btn-primary`
-       and paints the nav CTA's label in --ink-dim on a near-white button,
-       i.e. invisible. */
-    .nav-links a:not(.btn) { font-size: 13px; color: var(--ink-dim); text-decoration: none; transition: color .15s; }
+    .brand span { font-size: 14px; font-weight: 600; letter-spacing: 0.18em; }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a:not(.btn) { font-size: 13.5px; color: var(--dim); text-decoration: none; transition: color .15s; }
     .nav-links a:not(.btn):hover { color: var(--ink); }
-    @media (max-width: 720px) { .nav-links .hide-sm { display: none; } }
+    @media (max-width: 760px) { .hide-sm { display: none; } }
 
     .btn {
       display: inline-flex; align-items: center; gap: 8px;
-      padding: 10px 18px; font-size: 14px; font-weight: 500;
-      text-decoration: none; border: 1px solid transparent; white-space: nowrap;
-      transition: background .15s, border-color .15s, color .15s;
+      padding: 11px 20px; font-size: 14px; font-weight: 550;
+      text-decoration: none; border: 1px solid transparent; border-radius: 7px;
+      white-space: nowrap; transition: transform .15s, background .15s, border-color .15s, box-shadow .15s;
     }
-    .btn-primary { background: var(--ink); color: var(--bg); }
-    .btn-primary:hover { background: #fff; }
-    .btn-ghost { border-color: var(--line); color: var(--ink); }
-    .btn-ghost:hover { border-color: var(--ink-faint); }
+    .btn-primary {
+      background: var(--ink); color: #08080a;
+      box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 8px 24px -10px rgba(255,255,255,.35);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 12px 30px -10px rgba(255,255,255,.45); }
+    .btn-ghost { border-color: var(--ghost); color: var(--ink); background: rgba(255,255,255,.02); }
+    .btn-ghost:hover { border-color: var(--faint); background: rgba(255,255,255,.05); }
+    .btn-lg { padding: 14px 26px; font-size: 15px; }
 
-    /* ── Hero ────────────────────────────────────────────────────────── */
-    header.hero { padding: 108px 0 86px; border-bottom: 1px solid var(--line); }
-    .eyebrow {
-      font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.14em;
-      color: var(--ink-faint); text-transform: uppercase; margin: 0 0 26px;
+    /* ── Hero ──────────────────────────────────────────────────────────── */
+    header.hero { position: relative; padding: 96px 0 0; overflow: hidden; }
+    /* A single soft light source behind the headline — the only "effect" on
+       the page, and it does the work of ten gradients. */
+    .glow {
+      position: absolute; inset: -20% 0 auto 0; height: 720px; pointer-events: none;
+      background:
+        radial-gradient(700px 320px at 50% 0%, rgba(255,106,77,.16), transparent 70%),
+        radial-gradient(900px 420px at 50% 12%, rgba(167,139,250,.10), transparent 72%);
+      filter: blur(4px);
     }
+    .hero-in { position: relative; text-align: center; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 9px;
+      padding: 6px 14px 6px 10px; border: 1px solid var(--ghost); border-radius: 999px;
+      background: rgba(255,255,255,.03); font-size: 12.5px; color: var(--dim);
+      margin-bottom: 30px;
+    }
+    .pill b { color: var(--ink); font-weight: 600; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(16,185,129,.18); }
+
     h1 {
-      margin: 0; font-size: clamp(40px, 6.4vw, 76px); line-height: 1.02;
-      letter-spacing: -0.035em; font-weight: 500; max-width: 15ch;
+      margin: 0 auto; max-width: 21ch;
+      font-size: clamp(42px, 7vw, 88px); line-height: 1.0;
+      letter-spacing: -0.04em; font-weight: 560;
     }
+    h1 em { font-style: normal; color: var(--accent); }
     .lede {
-      margin: 26px 0 0; font-size: clamp(17px, 2vw, 20px);
-      line-height: 1.55; color: var(--ink-dim); max-width: 56ch;
+      margin: 28px auto 0; max-width: 60ch;
+      font-size: clamp(16.5px, 1.6vw, 19.5px); line-height: 1.6; color: var(--dim);
     }
-    .hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 38px; }
-    .hero-note { margin: 20px 0 0; font-size: 13px; color: var(--ink-faint); }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 36px; }
+    .hero-note { margin: 18px 0 0; font-size: 13px; color: var(--faint); }
 
-    /* ── The loop ────────────────────────────────────────────────────── */
-    section { padding: 84px 0; border-bottom: 1px solid var(--line); }
-    h2 {
-      margin: 0 0 14px; font-size: clamp(26px, 3.4vw, 38px);
-      line-height: 1.12; letter-spacing: -0.02em; font-weight: 500;
+    /* Product shot in a browser chrome, lifted off the page. */
+    .shot { position: relative; margin-top: 62px; }
+    .frame {
+      border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+      background: var(--raised);
+      box-shadow: 0 60px 140px -40px rgba(0,0,0,.9), 0 0 0 1px rgba(255,255,255,.03),
+                  0 -1px 0 rgba(255,255,255,.06) inset;
     }
-    .section-lede { margin: 0 0 44px; color: var(--ink-dim); max-width: 62ch; font-size: 16.5px; }
-
-    .loop { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
-    .loop-step { background: var(--bg); padding: 24px 22px 26px; }
-    .loop-who {
-      font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em;
-      text-transform: uppercase; margin: 0 0 10px;
+    .frame-bar {
+      display: flex; align-items: center; gap: 7px;
+      padding: 11px 14px; border-bottom: 1px solid var(--line-soft);
+      background: rgba(255,255,255,.02);
     }
-    .who-human { color: var(--accent); }
-    .who-agent { color: var(--green); }
-    .who-weave { color: var(--ink-faint); }
-    .loop-step h3 { margin: 0 0 8px; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
-    /* `:not(.loop-who)` matters: the bare `.loop-step p` selector out-specifies
-       the single-class role colours below and flattened HUMAN / AGENT / WEAVE
-       to one grey — losing the whole point of the diagram. */
-    .loop-step p:not(.loop-who) { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink-dim); }
+    .frame-bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--ghost); }
+    .frame-url {
+      margin-left: 10px; font-family: var(--mono); font-size: 11px; color: var(--faint);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .frame img { width: 100%; height: auto; }
+    /* Fade the very bottom of the hero shot into the page. */
+    .shot::after {
+      content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 130px;
+      background: linear-gradient(to bottom, transparent, var(--bg)); pointer-events: none;
+    }
 
-    /* ── Differentiators ─────────────────────────────────────────────── */
-    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); gap: 26px; }
-    .card { border-top: 1px solid var(--line); padding-top: 20px; }
-    .card-num { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); margin: 0 0 12px; }
-    .card h3 { margin: 0 0 10px; font-size: 17px; font-weight: 600; letter-spacing: -0.015em; }
-    .card p { margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--ink-dim); }
+    /* ── Trust strip ───────────────────────────────────────────────────── */
+    .strip { border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); padding: 22px 0; }
+    .strip-in { display: flex; flex-wrap: wrap; gap: 14px 40px; justify-content: center; align-items: center; }
+    .strip span { font-size: 12.5px; color: var(--faint); display: inline-flex; align-items: center; gap: 8px; }
+    .strip b { color: var(--dim); font-weight: 500; }
 
-    /* ── Tools ───────────────────────────────────────────────────────── */
-    .tools { border: 1px solid var(--line); overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 620px; }
-    th, td { text-align: left; padding: 13px 20px; border-bottom: 1px solid var(--line); vertical-align: top; }
-    th { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-faint); font-weight: 400; }
+    /* ── Sections ──────────────────────────────────────────────────────── */
+    section { padding: 108px 0; }
+    .eyebrow {
+      font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.16em;
+      color: var(--accent); text-transform: uppercase; margin: 0 0 18px;
+    }
+    h2 { margin: 0 0 16px; font-size: clamp(28px, 3.8vw, 44px); line-height: 1.08; letter-spacing: -0.028em; font-weight: 560; max-width: 20ch; }
+    .sub { margin: 0; color: var(--dim); max-width: 60ch; font-size: 17px; line-height: 1.62; }
+    .center { text-align: center; }
+    .center h2, .center .sub { margin-left: auto; margin-right: auto; }
+
+    /* Alternating feature rows */
+    .feature { display: grid; grid-template-columns: 1fr 1.25fr; gap: 64px; align-items: center; }
+    .feature + .feature { margin-top: 120px; }
+    /* Flipping the row must swap the COLUMN WIDTHS too, or the image lands in
+       the narrow track and renders smaller than its siblings. */
+    .feature.flip { grid-template-columns: 1.25fr 1fr; }
+    .feature.flip .feature-copy { order: 2; }
+    @media (max-width: 940px) {
+      .feature, .feature.flip { grid-template-columns: 1fr; gap: 36px; }
+      .feature.flip .feature-copy { order: 0; }
+      .feature + .feature { margin-top: 84px; }
+    }
+    .feature h3 { margin: 0 0 14px; font-size: clamp(22px, 2.6vw, 30px); line-height: 1.16; letter-spacing: -0.022em; font-weight: 560; }
+    .feature p { margin: 0; color: var(--dim); font-size: 16px; line-height: 1.65; }
+    .feature ul { margin: 22px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 11px; }
+    .feature li { display: flex; gap: 11px; font-size: 14.5px; color: var(--dim); line-height: 1.5; }
+    .tick { color: var(--green); flex: 0 0 auto; margin-top: 1px; }
+
+    /* ── Loop strip ────────────────────────────────────────────────────── */
+    .loop { display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-top: 52px; }
+    .step { background: var(--bg); padding: 26px 22px 28px; }
+    .who { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 12px; }
+    .who-h { color: var(--accent); } .who-a { color: var(--green); } .who-w { color: var(--violet); }
+    .step h4 { margin: 0 0 8px; font-size: 15px; font-weight: 600; letter-spacing: -0.012em; }
+    .step p:not(.who) { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--dim); }
+
+    /* ── Stats ─────────────────────────────────────────────────────────── */
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-top: 52px; }
+    .stat { background: var(--bg); padding: 30px 24px; }
+    .stat b { display: block; font-size: clamp(32px, 4.4vw, 46px); line-height: 1; letter-spacing: -0.035em; font-weight: 560; }
+    .stat span { display: block; margin-top: 10px; font-size: 13.5px; color: var(--dim); line-height: 1.5; }
+    .stat small { display: block; margin-top: 7px; font-size: 11.5px; color: var(--faint); font-family: var(--mono); }
+
+    /* ── Tools ─────────────────────────────────────────────────────────── */
+    .tools { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-top: 44px; }
+    .tools-scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 640px; }
+    th, td { text-align: left; padding: 14px 22px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+    th { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); font-weight: 400; background: rgba(255,255,255,.02); }
     tbody tr:last-child td { border-bottom: none; }
-    td.name { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
-    td.desc { color: var(--ink-dim); }
-    .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
-    .tag-read { color: var(--ink-faint); }
-    .tag-write { color: var(--accent); }
-    .tag-destructive { color: #ef4444; }
-    .tag-gated { color: var(--green); }
+    tbody tr:hover td { background: rgba(255,255,255,.015); }
+    td.n { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+    td.d { color: var(--dim); }
+    .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; white-space: nowrap; padding: 3px 8px; border-radius: 5px; }
+    .t-read { color: var(--faint); background: rgba(255,255,255,.05); }
+    .t-write { color: var(--accent); background: rgba(255,106,77,.12); }
+    .t-dest { color: #f87171; background: rgba(248,113,113,.12); }
+    .t-gate { color: var(--green); background: rgba(16,185,129,.13); }
 
-    /* ── Honesty panel ───────────────────────────────────────────────── */
-    .honest { background: var(--bg-raised); border: 1px solid var(--line); padding: 28px 30px; }
-    .honest h3 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
-    .honest ul { margin: 0; padding-left: 18px; color: var(--ink-dim); font-size: 14.5px; line-height: 1.7; }
-    .honest li { margin-bottom: 6px; }
+    /* ── Honesty ───────────────────────────────────────────────────────── */
+    .honest { background: var(--raised); border: 1px solid var(--line); border-radius: 12px; padding: 32px 34px; margin-top: 44px; }
+    .honest h3 { margin: 0 0 14px; font-size: 16px; font-weight: 600; }
+    .honest ul { margin: 0; padding-left: 20px; color: var(--dim); font-size: 14.5px; line-height: 1.72; }
+    .honest li { margin-bottom: 8px; }
 
-    /* ── Footer ──────────────────────────────────────────────────────── */
-    footer { padding: 52px 0 68px; }
-    .foot { display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; align-items: flex-start; }
-    .foot p { margin: 0; font-size: 13px; color: var(--ink-faint); max-width: 52ch; line-height: 1.6; }
-    .foot a { color: var(--ink-dim); }
+    /* ── Closing CTA ───────────────────────────────────────────────────── */
+    .close { position: relative; text-align: center; padding: 118px 0 124px; border-top: 1px solid var(--line-soft); overflow: hidden; }
+    .close .glow { inset: auto 0 -40% 0; height: 520px; }
+
+    /* ── Footer ────────────────────────────────────────────────────────── */
+    footer { padding: 44px 0 64px; border-top: 1px solid var(--line-soft); }
+    .foot { display: flex; flex-wrap: wrap; gap: 22px; justify-content: space-between; align-items: flex-start; }
+    .foot p { margin: 0; font-size: 13px; color: var(--faint); max-width: 54ch; line-height: 1.65; }
+    .foot a { color: var(--dim); }
   </style>
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
 
   <nav>
-    <div class="wrap nav-inner">
+    <div class="wrap nav-in">
       <a class="brand" href="/" aria-label="WEAVE home">
-        <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="1" y="1" width="22" height="22" rx="5" fill="#f4f2ef" />
-          <path d="M5 7l3 10 4-7 4 7 3-10" fill="none" stroke="#0b0b0c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+        <svg width="27" height="27" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="1" y="1" width="22" height="22" rx="5.5" fill="#f5f3f0" />
+          <path d="M5 7l3 10 4-7 4 7 3-10" fill="none" stroke="#08080a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-        <span class="brand-name">WEAVE</span>
+        <span>WEAVE</span>
       </a>
       <div class="nav-links">
-        <a class="hide-sm" href="#loop">How it works</a>
+        <a class="hide-sm" href="#how">How it works</a>
         <a class="hide-sm" href="#tools">Tools</a>
+        <a class="hide-sm" href="#numbers">Efficiency</a>
         <a class="hide-sm" href="https://github.com/Aaditya1273/WEAVE" rel="noopener">GitHub</a>
         <a class="btn btn-primary" href="/app/">Open the editor</a>
       </div>
@@ -185,149 +267,214 @@
   </nav>
 
   <main id="main">
+    <!-- ── Hero ─────────────────────────────────────────────────────── -->
     <header class="hero">
-      <div class="wrap">
-        <p class="eyebrow">Human + Agent Website Builder</p>
-        <h1>The website builder built for humans and agents.</h1>
+      <div class="glow" aria-hidden="true"></div>
+      <div class="wrap hero-in">
+        <p class="pill"><span class="dot" aria-hidden="true"></span> Works today in <b>ChatGPT desktop</b> &amp; <b>Chrome&nbsp;149</b></p>
+        <h1>The website builder built for <em>humans and agents</em>.</h1>
         <p class="lede">
           Build visually. Direct your agent. Publish an agent-ready website.
-          WEAVE is a real visual editor where a person and an AI agent author the
-          same live project through WebMCP — with structured context, reviewable
-          proposals, and a human approval gate before anything ships.
+          A real visual editor where a person and an AI agent author the same live
+          project through WebMCP — structured context, reviewable proposals, and a
+          human approval gate before anything ships.
         </p>
-        <div class="hero-cta">
-          <a class="btn btn-primary" href="/app/">Open the editor</a>
-          <a class="btn btn-ghost" href="/app/?weave=inspector">Inspect the WebMCP layer</a>
+        <div class="cta-row">
+          <a class="btn btn-primary btn-lg" href="/app/">Open the editor</a>
+          <a class="btn btn-ghost btn-lg" href="/app/?weave=inspector">Inspect the WebMCP layer</a>
         </div>
-        <p class="hero-note">
-          Opens a live demo storefront in your browser. Nothing to install, no account.
-        </p>
+        <p class="hero-note">Live demo storefront in your browser. Nothing to install, no account.</p>
+      </div>
+
+      <div class="wrap shot reveal">
+        <div class="frame">
+          <div class="frame-bar" aria-hidden="true">
+            <i></i><i></i><i></i>
+            <span class="frame-url">weave-webmcp.vercel.app/app/</span>
+          </div>
+          <img src="/marketing/hero-editor.webp" width="2200" height="1320"
+               alt="The WEAVE editor: a ceramics storefront on the canvas, with the Agent panel showing a live WebMCP connection, an agent readiness score of 100, nine available tools and a feed of agent tool calls." />
+        </div>
       </div>
     </header>
 
-    <section id="loop">
-      <div class="wrap">
+    <!-- ── Trust strip ──────────────────────────────────────────────── -->
+    <div class="strip">
+      <div class="wrap strip-in">
+        <span><b>document.modelContext</b> — current W3C API</span>
+        <span><b>9</b> typed tools, real annotations</span>
+        <span><b>10,042</b> tests passing</span>
+        <span><b>AGPL-3.0</b> — your code, no lock-in</span>
+      </div>
+    </div>
+
+    <!-- ── How it works ─────────────────────────────────────────────── -->
+    <section id="how">
+      <div class="wrap center">
+        <p class="eyebrow">How it works</p>
         <h2>One project. Two authors.</h2>
-        <p class="section-lede">
+        <p class="sub">
           The agent never guesses from pixels and never edits behind your back. It reads
           the same structured model the canvas renders from, and proposes work you approve.
         </p>
-        <div class="loop">
-          <div class="loop-step">
-            <p class="loop-who who-human">Human</p>
-            <h3>Edit on a real canvas</h3>
-            <p>Drag, type, restyle. Every edit becomes a new project revision.</p>
+      </div>
+      <div class="wrap">
+        <div class="loop reveal">
+          <div class="step"><p class="who who-h">Human</p><h4>Edit on a real canvas</h4><p>Drag, type, restyle. Every edit becomes a new project revision.</p></div>
+          <div class="step"><p class="who who-a">Agent</p><h4>Read structured context</h4><p>Typed sections, stable element ids, your selection — not a DOM dump.</p></div>
+          <div class="step"><p class="who who-a">Agent</p><h4>Propose a change set</h4><p>Related edits arrive as one reviewable proposal. The canvas doesn’t move.</p></div>
+          <div class="step"><p class="who who-h">Human</p><h4>Amend, skip, apply</h4><p>Rewrite a value, drop an operation, apply the rest. One undo reverses it all.</p></div>
+          <div class="step"><p class="who who-w">WEAVE</p><h4>Gate the publish</h4><p>An agent can request a publish. Only your click performs one.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Feature 1: ChangeSets ────────────────────────────────────── -->
+    <section style="padding-top:0">
+      <div class="wrap">
+        <div class="feature reveal">
+          <div class="feature-copy">
+            <p class="eyebrow">Change sets</p>
+            <h3>Transactions, not one-off edits.</h3>
+            <p>
+              “Make this homepage feel more premium” becomes <strong>one proposal</strong>
+              containing several operations — not five edits fired at your canvas one at a time.
+            </p>
+            <ul>
+              <li><span class="tick" aria-hidden="true">✓</span> See every operation’s before and after</li>
+              <li><span class="tick" aria-hidden="true">✓</span> Rewrite any value the agent chose</li>
+              <li><span class="tick" aria-hidden="true">✓</span> Skip the parts you don’t want</li>
+              <li><span class="tick" aria-hidden="true">✓</span> Accepted work commits atomically as one revision</li>
+              <li><span class="tick" aria-hidden="true">✓</span> A single undo reverses the whole transaction</li>
+            </ul>
           </div>
-          <div class="loop-step">
-            <p class="loop-who who-agent">Agent</p>
-            <h3>Read structured context</h3>
-            <p>Typed sections, stable element ids, your current selection — not a DOM dump.</p>
+          <div class="frame">
+            <img src="/marketing/proposal.webp" width="1600" height="1000" loading="lazy"
+                 alt="The proposal review panel: an agent proposal titled Make the homepage feel more premium, showing three operations with their current and proposed values, one marked edited by you, and an Apply 3 changes button." />
           </div>
-          <div class="loop-step">
-            <p class="loop-who who-agent">Agent</p>
-            <h3>Propose a change set</h3>
-            <p>Several related edits arrive as one reviewable proposal. The canvas does not move.</p>
+        </div>
+
+        <!-- ── Feature 2: publish gate ──────────────────────────────── -->
+        <div class="feature flip reveal">
+          <div class="feature-copy">
+            <p class="eyebrow">Safety</p>
+            <h3>The agent can ask. Only you can ship.</h3>
+            <p>
+              There is no code path from a tool call to a deploy. A publish request opens an
+              approval card showing the revision and exactly what changed since the last one.
+            </p>
+            <ul>
+              <li><span class="tick" aria-hidden="true">✓</span> Destructive tools are annotated as destructive</li>
+              <li><span class="tick" aria-hidden="true">✓</span> Proposals pinned to a revision — stale ones are refused</li>
+              <li><span class="tick" aria-hidden="true">✓</span> Three validation layers before anything touches your project</li>
+              <li><span class="tick" aria-hidden="true">✓</span> No <code style="font-family:var(--mono);font-size:13px">eval</code>, no arbitrary code, no <code style="font-family:var(--mono);font-size:13px">javascript:</code> URLs</li>
+            </ul>
           </div>
-          <div class="loop-step">
-            <p class="loop-who who-human">Human</p>
-            <h3>Amend, skip, apply</h3>
-            <p>Rewrite a value, drop an operation, apply the rest. One undo reverses it all.</p>
+          <div class="frame">
+            <img src="/marketing/publish.webp" width="1600" height="1000" loading="lazy"
+                 alt="The Agent panel showing an Agent requested publish card with the revision, a summary of what changed, and Approve and publish alongside Cancel buttons." />
           </div>
-          <div class="loop-step">
-            <p class="loop-who who-weave">WEAVE</p>
-            <h3>Gate the publish</h3>
-            <p>An agent can request a publish. Only your click performs one.</p>
+        </div>
+
+        <!-- ── Feature 3: inspector ─────────────────────────────────── -->
+        <div class="feature reveal">
+          <div class="feature-copy">
+            <p class="eyebrow">Inspectable</p>
+            <h3>Every claim is checkable, live.</h3>
+            <p>
+              The Inspector reports what is <em>actually</em> registered right now — read from
+              the runtime, not from our documentation.
+            </p>
+            <ul>
+              <li><span class="tick" aria-hidden="true">✓</span> Which global carries the runtime, and which API members exist</li>
+              <li><span class="tick" aria-hidden="true">✓</span> Every tool’s JSON schema and annotations</li>
+              <li><span class="tick" aria-hidden="true">✓</span> Which tools are exposed vs hidden, and why</li>
+              <li><span class="tick" aria-hidden="true">✓</span> The last invocation each tool received</li>
+            </ul>
+          </div>
+          <div class="frame">
+            <img src="/marketing/inspector.webp" width="1600" height="1000" loading="lazy"
+                 alt="The WebMCP Inspector dialog listing the detected runtime host, capability pills for registerTool, unregisterTool, getTools and more, and all nine tools with their access level and exposure state." />
           </div>
         </div>
       </div>
     </section>
 
-    <section>
-      <div class="wrap">
-        <h2>What makes it different</h2>
-        <p class="section-lede">
-          Most agent integrations bolt a chatbot onto an editor. WEAVE treats the agent as a
-          second author with real boundaries.
+    <!-- ── Numbers ──────────────────────────────────────────────────── -->
+    <section id="numbers">
+      <div class="wrap center">
+        <p class="eyebrow">Efficiency</p>
+        <h2>Structure costs less than pixels.</h2>
+        <p class="sub">
+          Measured on this build’s demo page. An agent reading structured context instead of
+          the raw DOM spends roughly a tenth of the tokens — and every id it gets back is
+          directly actionable, so there is no second “find the element” step.
         </p>
-        <div class="cards">
-          <div class="card">
-            <p class="card-num">01</p>
-            <h3>Transactions, not one-off edits</h3>
-            <p>
-              “Make this homepage feel more premium” becomes one proposal containing five
-              operations. You see each one’s before and after, edit the copy you disagree with,
-              skip what you don’t want — and the rest commits atomically as a single revision.
-            </p>
-          </div>
-          <div class="card">
-            <p class="card-num">02</p>
-            <h3>Concurrency you can trust</h3>
-            <p>
-              Every proposal is pinned to the revision the agent was reasoning about. If you
-              edit the page first, the proposal is refused as stale instead of being applied
-              to state the agent never saw. Your work is never silently overwritten.
-            </p>
-          </div>
-          <div class="card">
-            <p class="card-num">03</p>
-            <h3>One pipeline for both authors</h3>
-            <p>
-              A human drag and an agent move produce the same mutation, the same generated
-              source and the same undo entry. There is no second write path, so there is no
-              class of change only one of you can make or reverse.
-            </p>
-          </div>
-          <div class="card">
-            <p class="card-num">04</p>
-            <h3>Agent-ready output</h3>
-            <p>
-              Publishing produces your real Next.js source plus a capability manifest and a
-              small runtime, so the site you ship can expose its own structure to the next
-              agent. No proprietary format, no lock-in.
-            </p>
-          </div>
+      </div>
+      <div class="wrap">
+        <div class="stats reveal">
+          <div class="stat"><b>~3.1k</b><span>tokens to read the whole page</span><small>12,335 chars structured</small></div>
+          <div class="stat"><b>~30k</b><span>tokens for the same page as raw DOM</span><small>119,875 chars</small></div>
+          <div class="stat"><b>10×</b><span>less to read, every time</span><small>measured, not estimated</small></div>
+          <div class="stat"><b>1</b><span>proposal replaces five verify loops</span><small>one commit, one undo</small></div>
         </div>
       </div>
     </section>
 
-    <section id="tools">
-      <div class="wrap">
-        <h2>The WebMCP surface</h2>
-        <p class="section-lede">
-          Nine typed tools, registered with the browser’s model-context runtime. Descriptions
-          state product intent; annotations declare real consequences.
+    <!-- ── Tools ────────────────────────────────────────────────────── -->
+    <section id="tools" style="padding-top:0">
+      <div class="wrap center">
+        <p class="eyebrow">The surface</p>
+        <h2>Nine typed tools.</h2>
+        <p class="sub">
+          Registered with the browser’s model-context runtime. Descriptions state product
+          intent; annotations declare real consequences. Element tools appear only while
+          you have something selected.
         </p>
-        <div class="tools">
-          <table>
-            <thead>
-              <tr><th scope="col">Tool</th><th scope="col">Access</th><th scope="col">What it does</th></tr>
-            </thead>
-            <tbody>
-              <tr><td class="name">weave_get_context</td><td><span class="tag tag-read">read</span></td><td class="desc">Page, revision, selection, typed sections, bounded element tree</td></tr>
-              <tr><td class="name">weave_get_selection</td><td><span class="tag tag-read">read</span></td><td class="desc">Full detail for the element you have selected</td></tr>
-              <tr><td class="name">weave_add_section</td><td><span class="tag tag-write">write</span></td><td class="desc">Insert a designed section from the shared library</td></tr>
-              <tr><td class="name">weave_update_element</td><td><span class="tag tag-write">write</span></td><td class="desc">Text, name, visibility, safe styles and attributes</td></tr>
-              <tr><td class="name">weave_move_element</td><td><span class="tag tag-write">write</span></td><td class="desc">Reorder or re-parent a section or element</td></tr>
-              <tr><td class="name">weave_delete_element</td><td><span class="tag tag-destructive">destructive</span></td><td class="desc">Remove an element and its children</td></tr>
-              <tr><td class="name">weave_propose_changes</td><td><span class="tag tag-gated">human review</span></td><td class="desc">Submit several edits as one reviewable proposal</td></tr>
-              <tr><td class="name">weave_validate_site</td><td><span class="tag tag-read">read</span></td><td class="desc">Real findings plus an explainable agent-readiness score</td></tr>
-              <tr><td class="name">weave_publish_site</td><td><span class="tag tag-gated">human approval</span></td><td class="desc">Request a publish — only your click performs one</td></tr>
-            </tbody>
-          </table>
-        </div>
       </div>
-    </section>
-
-    <section>
       <div class="wrap">
-        <div class="honest">
+        <div class="tools reveal">
+          <div class="tools-scroll">
+            <table>
+              <thead><tr><th scope="col">Tool</th><th scope="col">Access</th><th scope="col">What it does</th></tr></thead>
+              <tbody>
+                <tr><td class="n">weave_get_context</td><td><span class="tag t-read">read</span></td><td class="d">Page, revision, selection, typed sections, bounded element tree</td></tr>
+                <tr><td class="n">weave_get_selection</td><td><span class="tag t-read">read</span></td><td class="d">Full detail for the element you have selected</td></tr>
+                <tr><td class="n">weave_add_section</td><td><span class="tag t-write">write</span></td><td class="d">Insert a designed section from the shared library</td></tr>
+                <tr><td class="n">weave_update_element</td><td><span class="tag t-write">write</span></td><td class="d">Text, name, visibility, safe styles and attributes</td></tr>
+                <tr><td class="n">weave_move_element</td><td><span class="tag t-write">write</span></td><td class="d">Reorder or re-parent a section or element</td></tr>
+                <tr><td class="n">weave_delete_element</td><td><span class="tag t-dest">destructive</span></td><td class="d">Remove an element and its children</td></tr>
+                <tr><td class="n">weave_propose_changes</td><td><span class="tag t-gate">human review</span></td><td class="d">Submit several edits as one reviewable proposal</td></tr>
+                <tr><td class="n">weave_validate_site</td><td><span class="tag t-read">read</span></td><td class="d">Real findings plus an explainable agent-readiness score</td></tr>
+                <tr><td class="n">weave_publish_site</td><td><span class="tag t-gate">human approval</span></td><td class="d">Request a publish — only your click performs one</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="honest reveal">
           <h3>Where this actually stands</h3>
           <ul>
-            <li>WebMCP is an emerging browser API. If your browser exposes no runtime, the editor says so plainly — the tools remain usable through the built-in developer console, which calls the identical implementations.</li>
-            <li>Agent context is pull-based. WEAVE bumps a revision on every change and agents re-read; it does not pretend to push page content the shipping API cannot push.</li>
-            <li>“Publish” here means persist and download a complete, agent-ready bundle. No third-party deployment provider is contacted or simulated.</li>
+            <li>WebMCP is an emerging standard. If your browser exposes no runtime, the editor says so plainly — the tools stay usable through the built-in developer console, which calls the identical implementations.</li>
+            <li>Agent context is pull-based: WEAVE bumps a revision on every change and agents re-read. It does not pretend to push page content the shipping API cannot push.</li>
+            <li>“Publish” means persist and download a complete, agent-ready bundle. No third-party deployment provider is contacted or simulated.</li>
             <li>The runtime shipped with a published site is read-only plus same-site navigation, by design.</li>
           </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Close ────────────────────────────────────────────────────── -->
+    <section class="close">
+      <div class="glow" aria-hidden="true"></div>
+      <div class="wrap center" style="position:relative">
+        <h2 style="max-width:24ch">Open it and give your agent something to read.</h2>
+        <p class="sub" style="margin-top:14px">
+          A live storefront, nine tools, and an approval gate. No install, no account.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary btn-lg" href="/app/">Open the editor</a>
+          <a class="btn btn-ghost btn-lg" href="https://github.com/Aaditya1273/WEAVE" rel="noopener">Read the source</a>
         </div>
       </div>
     </section>
@@ -336,9 +483,9 @@
   <footer>
     <div class="wrap foot">
       <p>
-        WEAVE is a derivative work of <a href="https://github.com/Aaditya1273/WEAVE" rel="noopener">Revyme</a>,
-        an open-source visual web builder. Licensed under AGPL-3.0; upstream copyright and
-        attribution are preserved in the repository’s <span style="font-family:var(--mono)">NOTICE</span>.
+        WEAVE is a derivative work of Revyme, an open-source visual web builder.
+        Licensed under AGPL-3.0; upstream copyright and attribution are preserved in
+        the repository’s <span style="font-family:var(--mono)">NOTICE</span>.
       </p>
       <div class="nav-links">
         <a href="https://github.com/Aaditya1273/WEAVE" rel="noopener">GitHub</a>
