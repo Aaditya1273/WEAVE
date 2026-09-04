@@ -32,7 +32,7 @@ test('insert drag over a canvas-node layout resolves the drop target and inserts
     window.localStorage.setItem('revyme-project-local', JSON.stringify(data));
     window.localStorage.setItem('revyme-onboarding-completed', 'true');
   }, project);
-  await page.goto('/app/');
+  await page.goto('/');
   const editor = new EditorPage(page);
   await editor.sandbox().locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 60_000 });
   await page.waitForTimeout(2500);

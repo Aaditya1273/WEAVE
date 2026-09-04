@@ -60,7 +60,7 @@ test('W/H → auto on an instance resolves to the MASTER base size, no collapse'
     window.localStorage.setItem('revyme-project-local', JSON.stringify(data));
     window.localStorage.setItem('revyme-onboarding-completed', 'true');
   }, project);
-  await page.goto('/app/');
+  await page.goto('/');
   const editor = new EditorPage(page);
   await editor.sandbox().locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 60_000 });
   await editor.node('card-1').waitFor({ state: 'visible', timeout: 60_000 });

@@ -48,8 +48,7 @@ function findById(node: Json, id: string): Json | null {
 
 test.describe('WEAVE — human and agent author the same site', () => {
   test.beforeEach(async ({ page }) => {
-    // The editor lives at /app/; `/` is the marketing landing page.
-    await page.goto('/app/');
+    await page.goto('/');
     // The canvas iframe rendering the project is the readiness signal.
     await page.waitForSelector('iframe', { timeout: 30_000 });
     await page.waitForTimeout(5_000);

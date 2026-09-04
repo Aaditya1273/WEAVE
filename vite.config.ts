@@ -426,20 +426,5 @@ export default defineConfig(({ mode }) => {
   define: {
     'process.env': {},
   },
-  // TWO HTML ENTRIES.
-  //   /        → index.html      the marketing landing page (static, no JS)
-  //   /app/    → app/index.html  the editor shell that mounts src/main.tsx
-  // Before this split, `index.html` WAS the editor, so the deployed root
-  // dropped every visitor straight into the canvas with no way to learn what
-  // WEAVE is. Both entries exist in dev and in the build, so `npm run dev`
-  // and production serve the same two URLs.
-  build: {
-    rollupOptions: {
-      input: {
-        landing: path.resolve(__dirname, 'index.html'),
-        app: path.resolve(__dirname, 'app/index.html'),
-      },
-    },
-  },
   };
 });

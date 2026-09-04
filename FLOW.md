@@ -4,7 +4,7 @@ Everything in this document has been verified against the running build. Where a
 number appears, it was measured, not estimated. Where something cannot be shown,
 it says so and gives you the honest alternative.
 
-- **Live:** https://weave-webmcp.vercel.app — landing at `/`, editor at `/app/`
+- **Live:** https://weave-webmcp.vercel.app — the editor loads directly
 - **Repo:** https://github.com/Aaditya1273/WEAVE
 - **One-liner:** *A creative workspace where a human and an AI agent author the same
   website through a structured, inspectable, reversible WebMCP interaction model.*
@@ -38,7 +38,7 @@ browser**. This is the real integration path — no extension, no bridge, no MCP
 2. **Settings → Browser → Permissions → enable "Enable site tools."**
 3. Set the model to **GPT-5.6 Sol** or **GPT-5.6 Terra**.
    ⚠️ **GPT-5.6 Luna has WebMCP disabled.** Enterprise/Edu workspaces are not supported.
-4. In the ChatGPT built-in browser, open **https://weave-webmcp.vercel.app/app/**
+4. In the ChatGPT built-in browser, open **https://weave-webmcp.vercel.app**
 5. Click **"Site tools"** in the address bar → **"Available site tools."**
    You should see the `weave_*` tools listed.
 
@@ -73,7 +73,7 @@ These were tested against a simulated runtime identical in shape to ChatGPT's:
 
 The project autosaves to `localStorage`. To start fresh:
 open DevTools → Application → Local Storage → delete `revyme-project-local` →
-reload `/app/`. You'll get the EMBER storefront, focused on the hero at 53% zoom.
+reload the page. You'll get the EMBER storefront, focused on the hero at 53% zoom.
 
 ### 1.5 Recording setup
 
@@ -88,22 +88,7 @@ reload `/app/`. You'll get the EMBER storefront, focused on the hero at 53% zoom
 
 Total: **180 seconds.** Times are cumulative. Narration is written to be read aloud.
 
-### 0:00 – 0:20 — The landing page (what and why)
-
-**Show:** `https://weave-webmcp.vercel.app` — scroll slowly through the hero into
-"One project. Two authors."
-
-> "This is WEAVE. Website builders are built for hands and mice; AI agents get
-> screenshots and synthetic clicks. WEAVE makes the editor itself an agent surface,
-> so a person and an agent can author the same site through WebMCP."
-
-**Point at:** the HUMAN / AGENT / WEAVE loop strip — orange is you, green is the agent.
-
-Click **Open the editor**.
-
----
-
-### 0:20 – 0:35 — The product is real
+### 0:00 – 0:20 — What this is
 
 **Show:** the EMBER storefront on the canvas, three breakpoints in the layers panel.
 
@@ -381,7 +366,7 @@ front for free.
 | ChatGPT won't call a tool | Say: *"Use this site's tools."* If still not, fall back to the **WebMCP Test Console** in the panel — but **say out loud** that it's the developer console running the same implementations, labelled `console` in the feed. Never present it as ChatGPT. |
 | `update_element` unavailable | Nothing is selected — that's the adaptive surface. Select the element, or ask for a proposal. |
 | Proposal shows **stale** unexpectedly | You edited the page after it was made. That *is* the feature — pivot and demo it. |
-| Canvas won't load | Hard-reload `/app/`. If it persists, clear `revyme-project-local` and reload. |
+| Canvas won't load | Hard-reload the page. If it persists, clear `revyme-project-local` and reload. |
 
 **The honesty rule:** if the live agent connection fails, demo the Test Console and say
 what it is. A judge who catches you overstating loses trust in everything else; a judge
@@ -392,7 +377,7 @@ who hears you distinguish "agent" from "console" trusts the whole submission.
 ## 8. Final 60-second checklist before you hit record
 
 - [ ] ChatGPT desktop updated, **site tools enabled**, model = **Sol or Terra**
-- [ ] `https://weave-webmcp.vercel.app/app/` open in ChatGPT's built-in browser
+- [ ] `https://weave-webmcp.vercel.app` open in ChatGPT's built-in browser
 - [ ] Address bar → *Site tools → Available site tools* lists `weave_*`
 - [ ] Agent panel chip reads **“WebMCP connected”** (green)
 - [ ] Onboarding modal dismissed

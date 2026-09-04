@@ -33,7 +33,7 @@ test('canvas node dragged into a translate(-50%,-50%) image child lands at the c
     window.localStorage.setItem('revyme-project-local', JSON.stringify(data));
     window.localStorage.setItem('revyme-onboarding-completed', 'true');
   }, project);
-  await page.goto('/app/');
+  await page.goto('/');
   const editor = new EditorPage(page);
   await editor.sandbox().locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 60_000 });
   await editor.node('cn-pink').waitFor({ state: 'visible', timeout: 60_000 });

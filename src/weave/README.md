@@ -48,8 +48,6 @@ dispatcher an external agent reaches. There is no second write path.
 
 Small and listed so the boundary stays legible:
 
-- `index.html` / `app/index.html` — the landing page and the editor shell; the editor moved
-  to `/app/` so `/` can introduce the product instead of dropping visitors into the canvas.
 - `src/App.tsx` — `initWeave()` after mount, mounts the two overlays.
 - `src/code/stores/left-panel-store.ts` — the `'agent'` panel id.
 - `src/editor/left-toolbar/{LeftMenu,LeftPanel}.tsx` — the Agent rail button and panel.
