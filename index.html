@@ -79,7 +79,20 @@
       backdrop-filter: saturate(160%) blur(14px);
       border-bottom: 1px solid var(--line-soft);
     }
-    .nav-in { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 24px; }
+    /* Three zones so the links sit optically centred regardless of how wide
+       the brand or the right-hand cluster get. */
+    .nav-in { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; height: 64px; gap: 24px; }
+    .nav-mid { display: flex; justify-content: center; gap: 30px; }
+    .nav-right { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+    .nav-icon {
+      display: inline-flex; align-items: center; gap: 7px;
+      height: 38px; padding: 0 13px; border: 1px solid var(--ghost); border-radius: 8px;
+      background: rgba(255,255,255,.03); color: var(--dim); text-decoration: none;
+      font-size: 13px; transition: border-color .15s, color .15s, background .15s;
+    }
+    .nav-icon:hover { color: var(--ink); border-color: var(--faint); background: rgba(255,255,255,.06); }
+    @media (max-width: 900px) { nav .nav-mid { display: none; } }
+    @media (max-width: 560px) { nav .nav-icon { display: none; } }
     .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
     .brand span { font-size: 14px; font-weight: 600; letter-spacing: 0.18em; }
     .nav-links { display: flex; align-items: center; gap: 28px; }
@@ -93,11 +106,15 @@
       text-decoration: none; border: 1px solid transparent; border-radius: 7px;
       white-space: nowrap; transition: transform .15s, background .15s, border-color .15s, box-shadow .15s;
     }
+    /* Near-black ink on the accent, not white: white on #ff6a4d is ~2.9:1 and
+       fails AA at button sizes, while the ink pairing clears 7:1. */
     .btn-primary {
-      background: var(--ink); color: #08080a;
-      box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 8px 24px -10px rgba(255,255,255,.35);
+      background: var(--accent); color: #14060a;
+      box-shadow: 0 1px 0 rgba(255,255,255,.28) inset, 0 10px 28px -12px rgba(255,106,77,.75);
     }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 12px 30px -10px rgba(255,255,255,.45); }
+    .btn-primary:hover { transform: translateY(-1px); background: #ff7d63; box-shadow: 0 1px 0 rgba(255,255,255,.34) inset, 0 14px 34px -12px rgba(255,106,77,.9); }
+    .btn-light { background: var(--ink); color: #08080a; }
+    .btn-light:hover { transform: translateY(-1px); background: #fff; }
     .btn-ghost { border-color: var(--ghost); color: var(--ink); background: rgba(255,255,255,.02); }
     .btn-ghost:hover { border-color: var(--faint); background: rgba(255,255,255,.05); }
     .btn-lg { padding: 14px 26px; font-size: 15px; }
@@ -140,104 +157,10 @@
       background: radial-gradient(closest-side, rgba(8,8,10,.72), rgba(8,8,10,.34) 58%, transparent 100%);
       pointer-events: none; z-index: -1;
     }
-    .hero-in { position: relative; z-index: 1; }
     .close .glow { inset: auto -10% -40% -10%; height: 620px; }
     .close .glow::after { display: none; }
 
-    /* ── Nav ───────────────────────────────────────────────────────────── */
-    nav {
-      position: sticky; top: 0; z-index: 60;
-      background: color-mix(in srgb, var(--bg) 78%, transparent);
-      backdrop-filter: saturate(160%) blur(14px);
-      border-bottom: 1px solid var(--line-soft);
-    }
-    .nav-in { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 24px; }
-    .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
-    .brand span { font-size: 14px; font-weight: 600; letter-spacing: 0.18em; }
-    .nav-links { display: flex; align-items: center; gap: 28px; }
-    .nav-links a:not(.btn) { font-size: 13.5px; color: var(--dim); text-decoration: none; transition: color .15s; }
-    .nav-links a:not(.btn):hover { color: var(--ink); }
-    @media (max-width: 760px) { .hide-sm { display: none; } }
-
-    .btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 11px 20px; font-size: 14px; font-weight: 550;
-      text-decoration: none; border: 1px solid transparent; border-radius: 7px;
-      white-space: nowrap; transition: transform .15s, background .15s, border-color .15s, box-shadow .15s;
-    }
-    .btn-primary {
-      background: var(--ink); color: #08080a;
-      box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 8px 24px -10px rgba(255,255,255,.35);
-    }
-    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 12px 30px -10px rgba(255,255,255,.45); }
-    .btn-ghost { border-color: var(--ghost); color: var(--ink); background: rgba(255,255,255,.02); }
-    .btn-ghost:hover { border-color: var(--faint); background: rgba(255,255,255,.05); }
-    .btn-lg { padding: 14px 26px; font-size: 15px; }
-
-    /* ── Hero ──────────────────────────────────────────────────────────── */
-    header.hero { position: relative; padding: 96px 0 0; overflow: hidden; }
-    /* ── Aurora ────────────────────────────────────────────────────────
-       Soft light ribbons sweeping behind the hero. Built from a few wide,
-       heavily-blurred gradient bands at different angles and speeds — no
-       canvas, no WebGL, no library. Only `transform` and `opacity` animate,
-       so it stays on the compositor and never touches layout. */
-    .glow { position: absolute; inset: -30% -25% auto -25%; height: 1080px; pointer-events: none; overflow: hidden; }
-    .glow::after {
-      /* Settle the ribbons into the page background at the bottom edge. */
-      content: ''; position: absolute; inset: auto 0 0 0; height: 340px;
-      background: linear-gradient(to bottom, transparent, var(--bg));
-    }
-    .rib {
-      position: absolute; left: -20%; width: 140%; height: 300px;
-      border-radius: 50%; will-change: transform, opacity;
-      mix-blend-mode: screen;
-    }
-    .rib-1 {
-      top: 6%;
-      background: linear-gradient(90deg, transparent 0%, rgba(255,106,77,.30) 26%, rgba(255,150,110,.52) 48%, rgba(255,106,77,.26) 68%, transparent 100%);
-      filter: blur(70px); transform: rotate(-13deg);
-      animation: sweepA 26s ease-in-out infinite alternate;
-    }
-    .rib-2 {
-      top: 24%; height: 240px;
-      background: linear-gradient(90deg, transparent 0%, rgba(167,139,250,.30) 22%, rgba(200,175,255,.44) 50%, rgba(167,139,250,.22) 74%, transparent 100%);
-      filter: blur(84px); transform: rotate(-19deg);
-      animation: sweepB 34s ease-in-out infinite alternate;
-    }
-    .rib-3 {
-      top: 42%; height: 200px;
-      background: linear-gradient(90deg, transparent 0%, rgba(245,243,240,.16) 30%, rgba(245,243,240,.30) 52%, rgba(245,243,240,.12) 72%, transparent 100%);
-      filter: blur(62px); transform: rotate(-8deg);
-      animation: sweepC 30s ease-in-out infinite alternate;
-    }
-    .rib-4 {
-      top: 60%; height: 260px;
-      background: linear-gradient(90deg, transparent 0%, rgba(255,106,77,.20) 34%, rgba(167,139,250,.26) 62%, transparent 100%);
-      filter: blur(92px); transform: rotate(-24deg);
-      animation: sweepA 40s ease-in-out infinite alternate-reverse;
-    }
-    @keyframes sweepA {
-      from { transform: rotate(-13deg) translate3d(-7%, 0, 0) scaleY(1);   opacity: .75; }
-      to   { transform: rotate(-9deg)  translate3d(7%, 5%, 0) scaleY(1.28); opacity: 1; }
-    }
-    @keyframes sweepB {
-      from { transform: rotate(-19deg) translate3d(6%, 0, 0) scaleY(1.15); opacity: .6; }
-      to   { transform: rotate(-24deg) translate3d(-8%, 7%, 0) scaleY(.85); opacity: .95; }
-    }
-    @keyframes sweepC {
-      from { transform: rotate(-8deg)  translate3d(-9%, 2%, 0) scaleY(.9); opacity: .5; }
-      to   { transform: rotate(-4deg)  translate3d(9%, -3%, 0) scaleY(1.2); opacity: .85; }
-    }
-    /* Motion is decorative: hold the ribbons still when asked to. */
-    @media (prefers-reduced-motion: reduce) {
-      .rib { animation: none !important; }
-    }
-    /* Blur at this radius is expensive on small GPUs — lighten it there. */
-    @media (max-width: 700px) {
-      .rib { filter: blur(52px) !important; }
-      .glow { height: 780px; }
-    }
-    .hero-in { position: relative; text-align: center; }
+    .hero-in { position: relative; z-index: 1; text-align: center; }
     .pill {
       display: inline-flex; align-items: center; gap: 9px;
       padding: 6px 14px 6px 10px; border: 1px solid var(--ghost); border-radius: 999px;
@@ -268,15 +191,19 @@
       box-shadow: 0 60px 140px -40px rgba(0,0,0,.9), 0 0 0 1px rgba(255,255,255,.03),
                   0 -1px 0 rgba(255,255,255,.06) inset;
     }
+    /* macOS window chrome: traffic lights left, title optically centred. */
     .frame-bar {
-      display: flex; align-items: center; gap: 7px;
-      padding: 11px 14px; border-bottom: 1px solid var(--line-soft);
-      background: rgba(255,255,255,.02);
+      position: relative; display: flex; align-items: center; gap: 8px;
+      padding: 12px 14px; border-bottom: 1px solid var(--line-soft);
+      background: rgba(255,255,255,.025);
     }
-    .frame-bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--ghost); }
-    .frame-url {
-      margin-left: 10px; font-family: var(--mono); font-size: 11px; color: var(--faint);
-      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    .frame-bar i { width: 11px; height: 11px; border-radius: 50%; }
+    .frame-bar i:nth-child(1) { background: #ff5f57; }
+    .frame-bar i:nth-child(2) { background: #febc2e; }
+    .frame-bar i:nth-child(3) { background: #28c840; }
+    .frame-title {
+      position: absolute; left: 0; right: 0; text-align: center;
+      font-size: 12px; color: var(--faint); pointer-events: none;
     }
     .frame img { width: 100%; height: auto; }
     /* Fade the very bottom of the hero shot into the page. */
@@ -381,11 +308,17 @@
         </svg>
         <span>WEAVE</span>
       </a>
-      <div class="nav-links">
-        <a class="hide-sm" href="#how">How it works</a>
-        <a class="hide-sm" href="#tools">Tools</a>
-        <a class="hide-sm" href="#numbers">Efficiency</a>
-        <a class="hide-sm" href="https://github.com/Aaditya1273/WEAVE" rel="noopener">GitHub</a>
+      <div class="nav-mid nav-links">
+        <a href="#how">How it works</a>
+        <a href="#tools">Tools</a>
+        <a href="#numbers">Efficiency</a>
+        <a href="#safety">Safety</a>
+      </div>
+      <div class="nav-right">
+        <a class="nav-icon" href="https://github.com/Aaditya1273/WEAVE" rel="noopener" aria-label="WEAVE on GitHub">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.19c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          GitHub
+        </a>
         <a class="btn btn-primary" href="/app/">Open the editor</a>
       </div>
     </div>
@@ -406,7 +339,7 @@
         </p>
         <div class="cta-row">
           <a class="btn btn-primary btn-lg" href="/app/">Open the editor</a>
-          <a class="btn btn-ghost btn-lg" href="/app/?weave=inspector">Inspect the WebMCP layer</a>
+          <a class="btn btn-light btn-lg" href="/app/?weave=inspector">Inspect the WebMCP layer</a>
         </div>
         <p class="hero-note">Live demo storefront in your browser. Nothing to install, no account.</p>
       </div>
@@ -415,7 +348,7 @@
         <div class="frame">
           <div class="frame-bar" aria-hidden="true">
             <i></i><i></i><i></i>
-            <span class="frame-url">weave-webmcp.vercel.app/app/</span>
+            <span class="frame-title">WEAVE</span>
           </div>
           <img src="/marketing/hero-editor.webp" width="2200" height="1320"
                alt="The WEAVE editor: a ceramics storefront on the canvas, with the Agent panel showing a live WebMCP connection, an agent readiness score of 100, nine available tools and a feed of agent tool calls." />
@@ -480,7 +413,7 @@
         </div>
 
         <!-- ── Feature 2: publish gate ──────────────────────────────── -->
-        <div class="feature flip reveal">
+        <div class="feature flip reveal" id="safety">
           <div class="feature-copy">
             <p class="eyebrow">Safety</p>
             <h3>The agent can ask. Only you can ship.</h3>
@@ -599,7 +532,7 @@
         </p>
         <div class="cta-row">
           <a class="btn btn-primary btn-lg" href="/app/">Open the editor</a>
-          <a class="btn btn-ghost btn-lg" href="https://github.com/Aaditya1273/WEAVE" rel="noopener">Read the source</a>
+          <a class="btn btn-light btn-lg" href="https://github.com/Aaditya1273/WEAVE" rel="noopener">Read the source</a>
         </div>
       </div>
     </section>
