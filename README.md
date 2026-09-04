@@ -18,6 +18,8 @@ preserved intact. WEAVE adds a layer around them — see [What WEAVE added](#15-
 
 ## 1. What WEAVE is
 
+https://weave-webmcp.vercel.app
+
 A code-first visual builder whose document is real Next.js source, plus:
 
 - a **unified action pipeline** — human panels, WebMCP tools and the developer console all
