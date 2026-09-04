@@ -104,14 +104,138 @@
 
     /* ── Hero ──────────────────────────────────────────────────────────── */
     header.hero { position: relative; padding: 96px 0 0; overflow: hidden; }
-    /* A single soft light source behind the headline — the only "effect" on
-       the page, and it does the work of ten gradients. */
+    /* ── Aurora ────────────────────────────────────────────────────────
+       A WebGL fragment-shader "northern lights" curtain, ported from the
+       upstream AuroraBackground code component and recoloured to WEAVE's
+       palette. Two fBm fields warp the curtain and drift its centre line; a
+       gaussian falloff gives the soft edge. The canvas paints behind the
+       hero and is masked into the page at the bottom.
+
+       The CSS gradient below is the fallback: it is what shows when WebGL is
+       unavailable, and it is painted first so there is never a black flash
+       while the shader compiles. */
     .glow {
-      position: absolute; inset: -20% 0 auto 0; height: 720px; pointer-events: none;
+      position: absolute; inset: -20% -10% auto -10%; height: 1040px;
+      pointer-events: none; overflow: hidden;
       background:
-        radial-gradient(700px 320px at 50% 0%, rgba(255,106,77,.16), transparent 70%),
-        radial-gradient(900px 420px at 50% 12%, rgba(167,139,250,.10), transparent 72%);
-      filter: blur(4px);
+        radial-gradient(720px 340px at 42% 16%, rgba(255,106,77,.20), transparent 70%),
+        radial-gradient(820px 380px at 62% 30%, rgba(167,139,250,.16), transparent 72%);
+    }
+    .glow canvas {
+      position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+      opacity: 0; transition: opacity .9s ease;
+    }
+    .glow canvas.on { opacity: 1; }
+    .glow::after {
+      /* Settle the curtain into the page background at the bottom edge. */
+      content: ''; position: absolute; inset: auto 0 0 0; height: 380px;
+      background: linear-gradient(to bottom, transparent, var(--bg));
+    }
+    /* Keep the headline the brightest thing on screen: a soft scrim sits
+       between the curtain and the type, so the aurora reads as depth rather
+       than competing with the words. */
+    .hero-in::before {
+      content: ''; position: absolute; left: 50%; top: 46%;
+      width: 150%; height: 130%; transform: translate(-50%, -50%);
+      background: radial-gradient(closest-side, rgba(8,8,10,.82), rgba(8,8,10,.45) 55%, transparent 100%);
+      pointer-events: none; z-index: -1;
+    }
+    .hero-in { position: relative; z-index: 1; }
+    .close .glow { inset: auto -10% -40% -10%; height: 620px; }
+    .close .glow::after { display: none; }
+
+    /* ── Nav ───────────────────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 60;
+      background: color-mix(in srgb, var(--bg) 78%, transparent);
+      backdrop-filter: saturate(160%) blur(14px);
+      border-bottom: 1px solid var(--line-soft);
+    }
+    .nav-in { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 24px; }
+    .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+    .brand span { font-size: 14px; font-weight: 600; letter-spacing: 0.18em; }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a:not(.btn) { font-size: 13.5px; color: var(--dim); text-decoration: none; transition: color .15s; }
+    .nav-links a:not(.btn):hover { color: var(--ink); }
+    @media (max-width: 760px) { .hide-sm { display: none; } }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 11px 20px; font-size: 14px; font-weight: 550;
+      text-decoration: none; border: 1px solid transparent; border-radius: 7px;
+      white-space: nowrap; transition: transform .15s, background .15s, border-color .15s, box-shadow .15s;
+    }
+    .btn-primary {
+      background: var(--ink); color: #08080a;
+      box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 8px 24px -10px rgba(255,255,255,.35);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 12px 30px -10px rgba(255,255,255,.45); }
+    .btn-ghost { border-color: var(--ghost); color: var(--ink); background: rgba(255,255,255,.02); }
+    .btn-ghost:hover { border-color: var(--faint); background: rgba(255,255,255,.05); }
+    .btn-lg { padding: 14px 26px; font-size: 15px; }
+
+    /* ── Hero ──────────────────────────────────────────────────────────── */
+    header.hero { position: relative; padding: 96px 0 0; overflow: hidden; }
+    /* ── Aurora ────────────────────────────────────────────────────────
+       Soft light ribbons sweeping behind the hero. Built from a few wide,
+       heavily-blurred gradient bands at different angles and speeds — no
+       canvas, no WebGL, no library. Only `transform` and `opacity` animate,
+       so it stays on the compositor and never touches layout. */
+    .glow { position: absolute; inset: -30% -25% auto -25%; height: 1080px; pointer-events: none; overflow: hidden; }
+    .glow::after {
+      /* Settle the ribbons into the page background at the bottom edge. */
+      content: ''; position: absolute; inset: auto 0 0 0; height: 340px;
+      background: linear-gradient(to bottom, transparent, var(--bg));
+    }
+    .rib {
+      position: absolute; left: -20%; width: 140%; height: 300px;
+      border-radius: 50%; will-change: transform, opacity;
+      mix-blend-mode: screen;
+    }
+    .rib-1 {
+      top: 6%;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,106,77,.30) 26%, rgba(255,150,110,.52) 48%, rgba(255,106,77,.26) 68%, transparent 100%);
+      filter: blur(70px); transform: rotate(-13deg);
+      animation: sweepA 26s ease-in-out infinite alternate;
+    }
+    .rib-2 {
+      top: 24%; height: 240px;
+      background: linear-gradient(90deg, transparent 0%, rgba(167,139,250,.30) 22%, rgba(200,175,255,.44) 50%, rgba(167,139,250,.22) 74%, transparent 100%);
+      filter: blur(84px); transform: rotate(-19deg);
+      animation: sweepB 34s ease-in-out infinite alternate;
+    }
+    .rib-3 {
+      top: 42%; height: 200px;
+      background: linear-gradient(90deg, transparent 0%, rgba(245,243,240,.16) 30%, rgba(245,243,240,.30) 52%, rgba(245,243,240,.12) 72%, transparent 100%);
+      filter: blur(62px); transform: rotate(-8deg);
+      animation: sweepC 30s ease-in-out infinite alternate;
+    }
+    .rib-4 {
+      top: 60%; height: 260px;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,106,77,.20) 34%, rgba(167,139,250,.26) 62%, transparent 100%);
+      filter: blur(92px); transform: rotate(-24deg);
+      animation: sweepA 40s ease-in-out infinite alternate-reverse;
+    }
+    @keyframes sweepA {
+      from { transform: rotate(-13deg) translate3d(-7%, 0, 0) scaleY(1);   opacity: .75; }
+      to   { transform: rotate(-9deg)  translate3d(7%, 5%, 0) scaleY(1.28); opacity: 1; }
+    }
+    @keyframes sweepB {
+      from { transform: rotate(-19deg) translate3d(6%, 0, 0) scaleY(1.15); opacity: .6; }
+      to   { transform: rotate(-24deg) translate3d(-8%, 7%, 0) scaleY(.85); opacity: .95; }
+    }
+    @keyframes sweepC {
+      from { transform: rotate(-8deg)  translate3d(-9%, 2%, 0) scaleY(.9); opacity: .5; }
+      to   { transform: rotate(-4deg)  translate3d(9%, -3%, 0) scaleY(1.2); opacity: .85; }
+    }
+    /* Motion is decorative: hold the ribbons still when asked to. */
+    @media (prefers-reduced-motion: reduce) {
+      .rib { animation: none !important; }
+    }
+    /* Blur at this radius is expensive on small GPUs — lighten it there. */
+    @media (max-width: 700px) {
+      .rib { filter: blur(52px) !important; }
+      .glow { height: 780px; }
     }
     .hero-in { position: relative; text-align: center; }
     .pill {
@@ -235,7 +359,8 @@
 
     /* ── Closing CTA ───────────────────────────────────────────────────── */
     .close { position: relative; text-align: center; padding: 118px 0 124px; border-top: 1px solid var(--line-soft); overflow: hidden; }
-    .close .glow { inset: auto 0 -40% 0; height: 520px; }
+    .close .glow { inset: auto -25% -45% -25%; height: 640px; }
+    .close .glow::after { display: none; }
 
     /* ── Footer ────────────────────────────────────────────────────────── */
     footer { padding: 44px 0 64px; border-top: 1px solid var(--line-soft); }
@@ -269,7 +394,7 @@
   <main id="main">
     <!-- ── Hero ─────────────────────────────────────────────────────── -->
     <header class="hero">
-      <div class="glow" aria-hidden="true"></div>
+      <div class="glow" aria-hidden="true"><canvas data-aurora></canvas></div>
       <div class="wrap hero-in">
         <p class="pill"><span class="dot" aria-hidden="true"></span> Works today in <b>ChatGPT desktop</b> &amp; <b>Chrome&nbsp;149</b></p>
         <h1>The website builder built for <em>humans and agents</em>.</h1>
@@ -466,7 +591,7 @@
 
     <!-- ── Close ────────────────────────────────────────────────────── -->
     <section class="close">
-      <div class="glow" aria-hidden="true"></div>
+      <div class="glow" aria-hidden="true"><canvas data-aurora></canvas></div>
       <div class="wrap center" style="position:relative">
         <h2 style="max-width:24ch">Open it and give your agent something to read.</h2>
         <p class="sub" style="margin-top:14px">
@@ -493,5 +618,135 @@
       </div>
     </div>
   </footer>
+
+  <script>
+  /* Aurora — ported from WEAVE's own AuroraBackground code component
+     (src/code/project/default-code-components/AuroraBackground.ts), which
+     renders the same curtain inside the editor. Same shader maths, vanilla
+     WebGL instead of React, recoloured to the WEAVE palette and rotated so
+     the bands run diagonally.
+
+     It degrades quietly: no WebGL, a failed compile, or reduced-motion all
+     leave the CSS gradient underneath doing the job. */
+  (function () {
+    'use strict';
+    var nodes = document.querySelectorAll('canvas[data-aurora]');
+    if (!nodes.length) return;
+
+    var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    var VERT = 'attribute vec2 aPos;void main(){gl_Position=vec4(aPos,0.0,1.0);}';
+    var FRAG = [
+      'precision highp float;',
+      'uniform vec2 uRes; uniform float uTime;',
+      'uniform vec3 uA, uB, uC, uBg;',
+      'uniform float uScale, uSpread, uIntensity, uRot;',
+      'float hash(vec2 p){return fract(sin(dot(p,vec2(41.31,289.07)))*43758.5453);}',
+      'float vnoise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);vec2 u=f*f*(3.0-2.0*f);',
+      ' float a=hash(i),b=hash(i+vec2(1.0,0.0)),c=hash(i+vec2(0.0,1.0)),d=hash(i+vec2(1.0,1.0));',
+      ' return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);}',
+      'float fbm(vec2 p){float s=0.0,a=0.5;for(int i=0;i<5;i++){s+=a*vnoise(p);p*=2.03;a*=0.5;}return s;}',
+      'void main(){',
+      ' vec2 uv = gl_FragCoord.xy / uRes;',
+      /* Rotate the curtain about centre so the bands run diagonally, the way
+         they do on the reference site. Aspect-corrected so it never skews. */
+      ' float ar = uRes.x / max(1.0, uRes.y);',
+      ' vec2 p = uv - 0.5; p.x *= ar;',
+      ' float cs = cos(uRot), sn = sin(uRot);',
+      ' p = vec2(p.x*cs - p.y*sn, p.x*sn + p.y*cs);',
+      ' p.x /= ar; uv = p + 0.5;',
+      ' float t = uTime * 0.08;',
+      ' float ripple = fbm(vec2(uv.x*uScale + t, uv.y*1.6 - t*0.4));',
+      ' float drift  = fbm(vec2(uv.x*uScale*0.5 - t*0.6, 3.7));',
+      ' float centre = 0.52 + (drift-0.5)*0.5 + (ripple-0.5)*0.22;',
+      ' float dy = (uv.y - centre) / max(0.01, uSpread);',
+      ' float curtain = exp(-dy*dy);',
+      ' float streak = 0.65 + 0.35*fbm(vec2(uv.x*uScale*6.0 + t*1.7, 11.3));',
+      ' curtain *= streak;',
+      ' float m1 = clamp(fbm(vec2(uv.x*uScale*1.3 + t*0.9, 21.1)), 0.0, 1.0);',
+      ' float m2 = clamp(ripple, 0.0, 1.0);',
+      ' vec3 tint = mix(mix(uA,uB,m1), uC, m2*0.38);',
+      ' gl_FragColor = vec4(uBg + tint*curtain*uIntensity, 1.0);',
+      '}'
+    ].join('\n');
+
+    function rgb(hex) {
+      var n = parseInt(hex.slice(1), 16);
+      return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+    }
+
+    function start(canvas) {
+      var gl = canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'low-power' });
+      if (!gl) return;
+
+      function compile(type, src) {
+        var sh = gl.createShader(type);
+        gl.shaderSource(sh, src); gl.compileShader(sh);
+        return gl.getShaderParameter(sh, gl.COMPILE_STATUS) ? sh : null;
+      }
+      var vs = compile(gl.VERTEX_SHADER, VERT), fs = compile(gl.FRAGMENT_SHADER, FRAG);
+      if (!vs || !fs) return;
+      var prog = gl.createProgram();
+      gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+      gl.useProgram(prog);
+
+      var buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+      var aPos = gl.getAttribLocation(prog, 'aPos');
+      gl.enableVertexAttribArray(aPos);
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+      var u = {};
+      ['uRes','uTime','uA','uB','uC','uBg','uScale','uSpread','uIntensity','uRot']
+        .forEach(function (n) { u[n] = gl.getUniformLocation(prog, n); });
+
+      /* WEAVE palette: accent orange into violet, with a warm highlight. */
+      var A = rgb('#ff6a4d'), B = rgb('#a78bfa'), C = rgb('#ff8f6b'), BG = rgb('#08080a');
+      gl.uniform3f(u.uA, A[0], A[1], A[2]);
+      gl.uniform3f(u.uB, B[0], B[1], B[2]);
+      gl.uniform3f(u.uC, C[0], C[1], C[2]);
+      gl.uniform3f(u.uBg, BG[0], BG[1], BG[2]);
+      gl.uniform1f(u.uScale, 2.6);
+      gl.uniform1f(u.uSpread, 0.13);
+      gl.uniform1f(u.uIntensity, 0.78);
+      gl.uniform1f(u.uRot, -0.20);
+
+      /* A background layer nobody inspects closely does not need 3x pixels. */
+      var dpr = Math.min(1.5, window.devicePixelRatio || 1);
+      function resize() {
+        var w = Math.max(1, Math.round(canvas.clientWidth * dpr));
+        var h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+        if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.uniform2f(u.uRes, canvas.width, canvas.height);
+      }
+      function render(sec) { resize(); gl.uniform1f(u.uTime, sec); gl.drawArrays(gl.TRIANGLES, 0, 6); }
+
+      render(12.0);
+      canvas.classList.add('on');
+      if (reduced) {
+        if (window.ResizeObserver) new ResizeObserver(function () { render(12.0); }).observe(canvas);
+        return;
+      }
+
+      /* Only burn GPU while the curtain is actually on screen and the tab is
+         visible — this sits behind a hero people scroll past in seconds. */
+      var raf = 0, t0 = performance.now(), visible = true;
+      function tick(now) { render(((now - t0) / 1000)); raf = requestAnimationFrame(tick); }
+      function play() { if (!raf && visible && !document.hidden) raf = requestAnimationFrame(tick); }
+      function stop() { if (raf) { cancelAnimationFrame(raf); raf = 0; } }
+      if (window.IntersectionObserver) {
+        new IntersectionObserver(function (es) { visible = es[0].isIntersecting; visible ? play() : stop(); },
+          { rootMargin: '120px' }).observe(canvas);
+      } else { visible = true; }
+      document.addEventListener('visibilitychange', function () { document.hidden ? stop() : play(); });
+      play();
+    }
+
+    Array.prototype.forEach.call(nodes, function (c) { try { start(c); } catch (e) { /* CSS fallback stands */ } });
+  })();
+  </script>
 </body>
 </html>

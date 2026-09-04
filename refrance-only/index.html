@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Same icon set as the landing and cloud apps (transparent mark, accent
+       lower shape) so every Revyme surface shows one favicon. The apple-touch
+       icon keeps the opaque dark tile — iOS renders home-screen icons without
+       alpha. Vite rewrites these against the `/builder/` base.
+
+       ?v= is a cache-buster, not decoration: Chrome keeps favicons in a store
+       keyed by URL and does NOT refetch on a hard reload, so replacing the
+       file alone leaves existing tabs on the old icon. Bump it when the
+       artwork changes. -->
+  <link rel="icon" href="/favicon.ico?v=2" sizes="48x48" />
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png?v=2" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png?v=2" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Private app shell (the editor) — keep every route out of search. -->
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Revyme</title>
+  <style>
+    #root { height: 100vh; }
+    .selected-node-highlight { background: rgba(99, 102, 241, 0.12) !important; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
