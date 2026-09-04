@@ -32,7 +32,7 @@ async function seed(page: import('@playwright/test').Page): Promise<EditorPage> 
     window.localStorage.setItem('revyme-project-local', JSON.stringify(data));
     window.localStorage.setItem('revyme-onboarding-completed', 'true');
   }, project);
-  await page.goto('/');
+  await page.goto('/app/');
   const editor = new EditorPage(page);
   await editor.sandbox().locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 60_000 });
   await editor.node('spin-1').waitFor({ state: 'visible', timeout: 60_000 });

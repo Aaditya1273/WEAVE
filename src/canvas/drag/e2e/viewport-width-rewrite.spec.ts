@@ -74,7 +74,7 @@ test('typing a viewport width re-buckets @media overrides like drag does', async
     format: 'revyme-v1',
     files: { 'app/page.tsx': SERVER_WRAPPER, 'app/page.client.tsx': PAGE },
   });
-  await page.goto('/');
+  await page.goto('/app/');
   const sandbox = page.frameLocator('iframe[src*="5174"]');
   await sandbox.locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 30_000 });
   await sandbox.locator('[data-viewport="mobile"]').first().waitFor({ state: 'attached' });
@@ -195,7 +195,7 @@ test('templated page: typing a width leaves the LayoutClient untouched', async (
       'app/(Main)/page.client.tsx': PAGE,
     },
   });
-  await page.goto('/');
+  await page.goto('/app/');
   const sandbox = page.frameLocator('iframe[src*="5174"]');
   await sandbox.locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 30_000 });
   await sandbox.locator('[data-viewport]').first().waitFor({ state: 'attached' });
@@ -241,7 +241,7 @@ test('SECOND width change in a session keeps overrides (523 then 524)', async ({
     format: 'revyme-v1',
     files: { 'app/page.tsx': SERVER_WRAPPER, 'app/page.client.tsx': PAGE },
   });
-  await page.goto('/');
+  await page.goto('/app/');
   const sandbox = page.frameLocator('iframe[src*="5174"]');
   await sandbox.locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 30_000 });
   await sandbox.locator('[data-viewport="mobile"]').first().waitFor({ state: 'attached' });
@@ -294,7 +294,7 @@ test('chevron hold-scrub commits ONCE and keeps overrides', async ({ page }) => 
     format: 'revyme-v1',
     files: { 'app/page.tsx': SERVER_WRAPPER, 'app/page.client.tsx': PAGE },
   });
-  await page.goto('/');
+  await page.goto('/app/');
   const sandbox = page.frameLocator('iframe[src*="5174"]');
   await sandbox.locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 30_000 });
   await sandbox.locator('[data-viewport="mobile"]').first().waitFor({ state: 'attached' });
@@ -378,7 +378,7 @@ test('DRIFTED widths: page mobile 298 → 500 re-keys the page; template untouch
       'app/(Main)/page.client.tsx': driftedPage,
     },
   });
-  await page.goto('/');
+  await page.goto('/app/');
   const sandbox = page.frameLocator('iframe[src*="5174"]');
   await sandbox.locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 30_000 });
   await sandbox.locator('[data-viewport]').first().waitFor({ state: 'attached' });

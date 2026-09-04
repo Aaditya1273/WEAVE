@@ -31,7 +31,7 @@ test('left-edge resize on a top-only-pinned (centered-x) frame keeps the RIGHT e
     window.localStorage.setItem('revyme-project-local', JSON.stringify(data));
     window.localStorage.setItem('revyme-onboarding-completed', 'true');
   }, project);
-  await page.goto('/');
+  await page.goto('/app/');
   const editor = new EditorPage(page);
   await editor.sandbox().locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 60_000 });
   await editor.node('pink-1').waitFor({ state: 'visible', timeout: 60_000 });
@@ -95,7 +95,7 @@ test('right-edge resize on the same centered-x frame keeps the LEFT edge fixed',
     window.localStorage.setItem('revyme-project-local', JSON.stringify(data));
     window.localStorage.setItem('revyme-onboarding-completed', 'true');
   }, project);
-  await page.goto('/');
+  await page.goto('/app/');
   const editor = new EditorPage(page);
   await editor.sandbox().locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 60_000 });
   await editor.node('pink-1').waitFor({ state: 'visible', timeout: 60_000 });
@@ -144,7 +144,7 @@ test('left-edge resize on a PLAIN-% left (no translate) frame keeps the RIGHT ed
     window.localStorage.setItem('revyme-project-local', JSON.stringify(data));
     window.localStorage.setItem('revyme-onboarding-completed', 'true');
   }, project);
-  await page.goto('/');
+  await page.goto('/app/');
   const editor = new EditorPage(page);
   await editor.sandbox().locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 60_000 });
   await editor.node('pink-1').waitFor({ state: 'visible', timeout: 60_000 });
@@ -225,7 +225,7 @@ async function seedRotated(page: import('@playwright/test').Page): Promise<Edito
     window.localStorage.setItem('revyme-project-local', JSON.stringify(data));
     window.localStorage.setItem('revyme-onboarding-completed', 'true');
   }, project);
-  await page.goto('/');
+  await page.goto('/app/');
   const editor = new EditorPage(page);
   await editor.sandbox().locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 60_000 });
   await editor.node('pink-1').waitFor({ state: 'visible', timeout: 60_000 });
@@ -312,7 +312,7 @@ test('180°-rotated canvas node: dragging the VISUAL top edge up grows the box u
     window.localStorage.setItem('revyme-project-local', JSON.stringify(data));
     window.localStorage.setItem('revyme-onboarding-completed', 'true');
   }, project);
-  await page.goto('/');
+  await page.goto('/app/');
   const editor = new EditorPage(page);
   await editor.sandbox().locator('[data-content-root]').first().waitFor({ state: 'attached', timeout: 60_000 });
   await editor.node('cn-flip').waitFor({ state: 'visible', timeout: 60_000 });

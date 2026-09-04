@@ -51,7 +51,8 @@ export class EditorPage {
       },
       project,
     );
-    await this._page.goto('/');
+    // The editor is served at /app/; `/` is the marketing landing page.
+    await this._page.goto('/app/');
     await waitForCanvasReady(this._page);
     // One animation frame so Renderer has painted everything we'll
     // assert against.

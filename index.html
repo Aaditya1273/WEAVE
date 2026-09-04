@@ -1,33 +1,701 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <!-- Same icon set as the landing and cloud apps (transparent mark, accent
-       lower shape) so every Revyme surface shows one favicon. The apple-touch
-       icon keeps the opaque dark tile — iOS renders home-screen icons without
-       alpha. Vite rewrites these against the `/builder/` base.
-
-       ?v= is a cache-buster, not decoration: Chrome keeps favicons in a store
-       keyed by URL and does NOT refetch on a hard reload, so replacing the
-       file alone leaves existing tabs on the old icon. Bump it when the
-       artwork changes. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WEAVE — the website builder built for humans and agents</title>
+  <meta name="description" content="A visual website builder where a person and an AI agent author the same site through WebMCP. Structured context, reviewable change proposals, and a human approval gate before anything ships." />
   <link rel="icon" href="/favicon.ico?v=2" sizes="48x48" />
   <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png?v=2" />
   <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png?v=2" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Private app shell (the editor) — keep every route out of search. -->
-  <meta name="robots" content="noindex, nofollow" />
-  <title>WEAVE — Human + Agent Website Builder</title>
-  <meta name="description" content="WEAVE: the website builder built for humans and agents. Build visually. Direct your agent. Publish an agent-ready website." />
+  <meta property="og:title" content="WEAVE — the website builder built for humans and agents" />
+  <meta property="og:description" content="Build visually. Direct your agent. Publish an agent-ready website." />
+  <meta property="og:image" content="/marketing/hero-editor.webp" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
   <style>
-    #root { height: 100vh; }
-    .selected-node-highlight { background: rgba(99, 102, 241, 0.12) !important; }
+    /* Self-contained: no webfonts, no frameworks, no build step — the page
+       paints instantly and never depends on a CDN. */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    :root {
+      --ink:       #f5f3f0;
+      --dim:       rgba(245, 243, 240, 0.64);
+      --faint:     rgba(245, 243, 240, 0.40);
+      --ghost:     rgba(245, 243, 240, 0.16);
+      --bg:        #08080a;
+      --raised:    #101013;
+      --line:      rgba(245, 243, 240, 0.10);
+      --line-soft: rgba(245, 243, 240, 0.06);
+      --accent:    #ff6a4d;
+      --green:     #10b981;
+      --violet:    #a78bfa;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+      --max: 1200px;
+      --pad: 32px;
+    }
+
+    html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font-family: var(--sans); font-size: 16px; line-height: 1.6;
+      -webkit-font-smoothing: antialiased; overflow-x: hidden;
+    }
+    a { color: inherit; }
+    /* `height: auto` is load-bearing: the width/height attributes below pin an
+       intrinsic size for layout stability, and without this the height stays
+       pinned while the width shrinks — every screenshot renders stretched. */
+    img { max-width: 100%; height: auto; display: block; }
+    .wrap { width: 100%; max-width: var(--max); margin: 0 auto; padding: 0 var(--pad); }
+    @media (max-width: 640px) { :root { --pad: 20px; } }
+
+    .skip { position: absolute; left: -9999px; z-index: 200; background: var(--ink); color: var(--bg); padding: 10px 16px; }
+    .skip:focus { left: 12px; top: 12px; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+    /* ── Reveal on scroll (progressive; static if unsupported) ─────────── */
+    @supports (animation-timeline: view()) {
+      @media (prefers-reduced-motion: no-preference) {
+        .reveal {
+          animation: rise linear both;
+          animation-timeline: view();
+          animation-range: entry 8% entry 62%;
+        }
+        @keyframes rise {
+          from { opacity: .25; transform: translateY(20px); }
+          to   { opacity: 1; transform: none; }
+        }
+      }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+    /* ── Nav ───────────────────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 60;
+      background: color-mix(in srgb, var(--bg) 78%, transparent);
+      backdrop-filter: saturate(160%) blur(14px);
+      border-bottom: 1px solid var(--line-soft);
+    }
+    /* Three zones so the links sit optically centred regardless of how wide
+       the brand or the right-hand cluster get. */
+    .nav-in { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; height: 64px; gap: 24px; }
+    .nav-mid { display: flex; justify-content: center; gap: 30px; }
+    .nav-right { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+    .nav-icon {
+      display: inline-flex; align-items: center; gap: 7px;
+      height: 38px; padding: 0 13px; border: 1px solid var(--ghost); border-radius: 8px;
+      background: rgba(255,255,255,.03); color: var(--dim); text-decoration: none;
+      font-size: 13px; transition: border-color .15s, color .15s, background .15s;
+    }
+    .nav-icon:hover { color: var(--ink); border-color: var(--faint); background: rgba(255,255,255,.06); }
+    @media (max-width: 900px) { nav .nav-mid { display: none; } }
+    @media (max-width: 560px) { nav .nav-icon { display: none; } }
+    .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+    .brand span { font-size: 14px; font-weight: 600; letter-spacing: 0.18em; }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a:not(.btn) { font-size: 13.5px; color: var(--dim); text-decoration: none; transition: color .15s; }
+    .nav-links a:not(.btn):hover { color: var(--ink); }
+    @media (max-width: 760px) { .hide-sm { display: none; } }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 11px 20px; font-size: 14px; font-weight: 550;
+      text-decoration: none; border: 1px solid transparent; border-radius: 7px;
+      white-space: nowrap; transition: transform .15s, background .15s, border-color .15s, box-shadow .15s;
+    }
+    /* Near-black ink on the accent, not white: white on #ff6a4d is ~2.9:1 and
+       fails AA at button sizes, while the ink pairing clears 7:1. */
+    .btn-primary {
+      background: var(--accent); color: #14060a;
+      box-shadow: 0 1px 0 rgba(255,255,255,.28) inset, 0 10px 28px -12px rgba(255,106,77,.75);
+    }
+    .btn-primary:hover { transform: translateY(-1px); background: #ff7d63; box-shadow: 0 1px 0 rgba(255,255,255,.34) inset, 0 14px 34px -12px rgba(255,106,77,.9); }
+    .btn-light { background: var(--ink); color: #08080a; }
+    .btn-light:hover { transform: translateY(-1px); background: #fff; }
+    .btn-ghost { border-color: var(--ghost); color: var(--ink); background: rgba(255,255,255,.02); }
+    .btn-ghost:hover { border-color: var(--faint); background: rgba(255,255,255,.05); }
+    .btn-lg { padding: 14px 26px; font-size: 15px; }
+
+    /* ── Hero ──────────────────────────────────────────────────────────── */
+    header.hero { position: relative; padding: 96px 0 0; overflow: hidden; }
+    /* ── Aurora ────────────────────────────────────────────────────────
+       A WebGL fragment-shader "northern lights" curtain, ported from the
+       upstream AuroraBackground code component and recoloured to WEAVE's
+       palette. Two fBm fields warp the curtain and drift its centre line; a
+       gaussian falloff gives the soft edge. The canvas paints behind the
+       hero and is masked into the page at the bottom.
+
+       The CSS gradient below is the fallback: it is what shows when WebGL is
+       unavailable, and it is painted first so there is never a black flash
+       while the shader compiles. */
+    .glow {
+      position: absolute; inset: -20% -10% auto -10%; height: 1040px;
+      pointer-events: none; overflow: hidden;
+      background:
+        radial-gradient(720px 340px at 42% 16%, rgba(255,106,77,.20), transparent 70%),
+        radial-gradient(820px 380px at 62% 30%, rgba(167,139,250,.16), transparent 72%);
+    }
+    .glow canvas {
+      position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+      opacity: 0; transition: opacity .9s ease;
+    }
+    .glow canvas.on { opacity: 1; }
+    .glow::after {
+      /* Settle the curtain into the page background at the bottom edge. */
+      content: ''; position: absolute; inset: auto 0 0 0; height: 380px;
+      background: linear-gradient(to bottom, transparent, var(--bg));
+    }
+    /* Keep the headline the brightest thing on screen: a soft scrim sits
+       between the curtain and the type, so the aurora reads as depth rather
+       than competing with the words. */
+    .hero-in::before {
+      content: ''; position: absolute; left: 50%; top: 46%;
+      width: 150%; height: 130%; transform: translate(-50%, -50%);
+      background: radial-gradient(closest-side, rgba(8,8,10,.72), rgba(8,8,10,.34) 58%, transparent 100%);
+      pointer-events: none; z-index: -1;
+    }
+    .close .glow { inset: auto -10% -40% -10%; height: 620px; }
+    .close .glow::after { display: none; }
+
+    .hero-in { position: relative; z-index: 1; text-align: center; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 9px;
+      padding: 6px 14px 6px 10px; border: 1px solid var(--ghost); border-radius: 999px;
+      background: rgba(255,255,255,.03); font-size: 12.5px; color: var(--dim);
+      margin-bottom: 30px;
+    }
+    .pill b { color: var(--ink); font-weight: 600; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(16,185,129,.18); }
+
+    h1 {
+      margin: 0 auto; max-width: 21ch;
+      font-size: clamp(42px, 7vw, 88px); line-height: 1.0;
+      letter-spacing: -0.04em; font-weight: 560;
+    }
+    h1 em { font-style: normal; color: var(--accent); }
+    .lede {
+      margin: 28px auto 0; max-width: 60ch;
+      font-size: clamp(16.5px, 1.6vw, 19.5px); line-height: 1.6; color: var(--dim);
+    }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 36px; }
+    .hero-note { margin: 18px 0 0; font-size: 13px; color: var(--faint); }
+
+    /* Product shot in a browser chrome, lifted off the page. */
+    .shot { position: relative; margin-top: 62px; }
+    .frame {
+      border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+      background: var(--raised);
+      box-shadow: 0 60px 140px -40px rgba(0,0,0,.9), 0 0 0 1px rgba(255,255,255,.03),
+                  0 -1px 0 rgba(255,255,255,.06) inset;
+    }
+    /* macOS window chrome: traffic lights left, title optically centred. */
+    .frame-bar {
+      position: relative; display: flex; align-items: center; gap: 8px;
+      padding: 12px 14px; border-bottom: 1px solid var(--line-soft);
+      background: rgba(255,255,255,.025);
+    }
+    .frame-bar i { width: 11px; height: 11px; border-radius: 50%; }
+    .frame-bar i:nth-child(1) { background: #ff5f57; }
+    .frame-bar i:nth-child(2) { background: #febc2e; }
+    .frame-bar i:nth-child(3) { background: #28c840; }
+    .frame-title {
+      position: absolute; left: 0; right: 0; text-align: center;
+      font-size: 12px; color: var(--faint); pointer-events: none;
+    }
+    .frame img { width: 100%; height: auto; }
+    /* Fade the very bottom of the hero shot into the page. */
+    .shot::after {
+      content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 130px;
+      background: linear-gradient(to bottom, transparent, var(--bg)); pointer-events: none;
+    }
+
+    /* ── Trust strip ───────────────────────────────────────────────────── */
+    .strip { border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); padding: 22px 0; }
+    .strip-in { display: flex; flex-wrap: wrap; gap: 14px 40px; justify-content: center; align-items: center; }
+    .strip span { font-size: 12.5px; color: var(--faint); display: inline-flex; align-items: center; gap: 8px; }
+    .strip b { color: var(--dim); font-weight: 500; }
+
+    /* ── Sections ──────────────────────────────────────────────────────── */
+    section { padding: 108px 0; }
+    .eyebrow {
+      font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.16em;
+      color: var(--accent); text-transform: uppercase; margin: 0 0 18px;
+    }
+    h2 { margin: 0 0 16px; font-size: clamp(28px, 3.8vw, 44px); line-height: 1.08; letter-spacing: -0.028em; font-weight: 560; max-width: 20ch; }
+    .sub { margin: 0; color: var(--dim); max-width: 60ch; font-size: 17px; line-height: 1.62; }
+    .center { text-align: center; }
+    .center h2, .center .sub { margin-left: auto; margin-right: auto; }
+
+    /* Alternating feature rows */
+    .feature { display: grid; grid-template-columns: 1fr 1.25fr; gap: 64px; align-items: center; }
+    .feature + .feature { margin-top: 120px; }
+    /* Flipping the row must swap the COLUMN WIDTHS too, or the image lands in
+       the narrow track and renders smaller than its siblings. */
+    .feature.flip { grid-template-columns: 1.25fr 1fr; }
+    .feature.flip .feature-copy { order: 2; }
+    @media (max-width: 940px) {
+      .feature, .feature.flip { grid-template-columns: 1fr; gap: 36px; }
+      .feature.flip .feature-copy { order: 0; }
+      .feature + .feature { margin-top: 84px; }
+    }
+    .feature h3 { margin: 0 0 14px; font-size: clamp(22px, 2.6vw, 30px); line-height: 1.16; letter-spacing: -0.022em; font-weight: 560; }
+    .feature p { margin: 0; color: var(--dim); font-size: 16px; line-height: 1.65; }
+    .feature ul { margin: 22px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 11px; }
+    .feature li { display: flex; gap: 11px; font-size: 14.5px; color: var(--dim); line-height: 1.5; }
+    .tick { color: var(--green); flex: 0 0 auto; margin-top: 1px; }
+
+    /* ── Loop strip ────────────────────────────────────────────────────── */
+    .loop { display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-top: 52px; }
+    .step { background: var(--bg); padding: 26px 22px 28px; }
+    .who { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; margin: 0 0 12px; }
+    .who-h { color: var(--accent); } .who-a { color: var(--green); } .who-w { color: var(--violet); }
+    .step h4 { margin: 0 0 8px; font-size: 15px; font-weight: 600; letter-spacing: -0.012em; }
+    .step p:not(.who) { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--dim); }
+
+    /* ── Stats ─────────────────────────────────────────────────────────── */
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-top: 52px; }
+    .stat { background: var(--bg); padding: 30px 24px; }
+    .stat b { display: block; font-size: clamp(32px, 4.4vw, 46px); line-height: 1; letter-spacing: -0.035em; font-weight: 560; }
+    .stat span { display: block; margin-top: 10px; font-size: 13.5px; color: var(--dim); line-height: 1.5; }
+    .stat small { display: block; margin-top: 7px; font-size: 11.5px; color: var(--faint); font-family: var(--mono); }
+
+    /* ── Tools ─────────────────────────────────────────────────────────── */
+    .tools { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-top: 44px; }
+    .tools-scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 640px; }
+    th, td { text-align: left; padding: 14px 22px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+    th { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); font-weight: 400; background: rgba(255,255,255,.02); }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: rgba(255,255,255,.015); }
+    td.n { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+    td.d { color: var(--dim); }
+    .tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; white-space: nowrap; padding: 3px 8px; border-radius: 5px; }
+    .t-read { color: var(--faint); background: rgba(255,255,255,.05); }
+    .t-write { color: var(--accent); background: rgba(255,106,77,.12); }
+    .t-dest { color: #f87171; background: rgba(248,113,113,.12); }
+    .t-gate { color: var(--green); background: rgba(16,185,129,.13); }
+
+    /* ── Honesty ───────────────────────────────────────────────────────── */
+    .honest { background: var(--raised); border: 1px solid var(--line); border-radius: 12px; padding: 32px 34px; margin-top: 44px; }
+    .honest h3 { margin: 0 0 14px; font-size: 16px; font-weight: 600; }
+    .honest ul { margin: 0; padding-left: 20px; color: var(--dim); font-size: 14.5px; line-height: 1.72; }
+    .honest li { margin-bottom: 8px; }
+
+    /* ── Closing CTA ───────────────────────────────────────────────────── */
+    .close { position: relative; text-align: center; padding: 118px 0 124px; border-top: 1px solid var(--line-soft); overflow: hidden; }
+    .close .glow { inset: auto -25% -45% -25%; height: 640px; }
+    .close .glow::after { display: none; }
+
+    /* ── Footer ────────────────────────────────────────────────────────── */
+    footer { padding: 44px 0 64px; border-top: 1px solid var(--line-soft); }
+    .foot { display: flex; flex-wrap: wrap; gap: 22px; justify-content: space-between; align-items: flex-start; }
+    .foot p { margin: 0; font-size: 13px; color: var(--faint); max-width: 54ch; line-height: 1.65; }
+    .foot a { color: var(--dim); }
   </style>
 </head>
 <body>
-  <div id="root"></div>
-  <script type="module" src="/src/main.tsx"></script>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <nav>
+    <div class="wrap nav-in">
+      <a class="brand" href="/" aria-label="WEAVE home">
+        <svg width="27" height="27" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="1" y="1" width="22" height="22" rx="5.5" fill="#f5f3f0" />
+          <path d="M5 7l3 10 4-7 4 7 3-10" fill="none" stroke="#08080a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span>WEAVE</span>
+      </a>
+      <div class="nav-mid nav-links">
+        <a href="#how">How it works</a>
+        <a href="#tools">Tools</a>
+        <a href="#numbers">Efficiency</a>
+        <a href="#safety">Safety</a>
+      </div>
+      <div class="nav-right">
+        <a class="nav-icon" href="https://github.com/Aaditya1273/WEAVE" rel="noopener" aria-label="WEAVE on GitHub">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38l-.01-1.49c-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.19c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          GitHub
+        </a>
+        <a class="btn btn-primary" href="/app/">Open the editor</a>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main">
+    <!-- ── Hero ─────────────────────────────────────────────────────── -->
+    <header class="hero">
+      <div class="glow" aria-hidden="true"><canvas data-aurora></canvas></div>
+      <div class="wrap hero-in">
+        <p class="pill"><span class="dot" aria-hidden="true"></span> Works today in <b>ChatGPT desktop</b> &amp; <b>Chrome&nbsp;149</b></p>
+        <h1>The website builder built for <em>humans and agents</em>.</h1>
+        <p class="lede">
+          Build visually. Direct your agent. Publish an agent-ready website.
+          A real visual editor where a person and an AI agent author the same live
+          project through WebMCP — structured context, reviewable proposals, and a
+          human approval gate before anything ships.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary btn-lg" href="/app/">Open the editor</a>
+          <a class="btn btn-light btn-lg" href="/app/?weave=inspector">Inspect the WebMCP layer</a>
+        </div>
+        <p class="hero-note">Live demo storefront in your browser. Nothing to install, no account.</p>
+      </div>
+
+      <div class="wrap shot reveal">
+        <div class="frame">
+          <div class="frame-bar" aria-hidden="true">
+            <i></i><i></i><i></i>
+            <span class="frame-title">WEAVE</span>
+          </div>
+          <img src="/marketing/hero-editor.webp" width="2200" height="1320"
+               alt="The WEAVE editor: a ceramics storefront on the canvas, with the Agent panel showing a live WebMCP connection, an agent readiness score of 100, nine available tools and a feed of agent tool calls." />
+        </div>
+      </div>
+    </header>
+
+    <!-- ── Trust strip ──────────────────────────────────────────────── -->
+    <div class="strip">
+      <div class="wrap strip-in">
+        <span><b>document.modelContext</b> — current W3C API</span>
+        <span><b>9</b> typed tools, real annotations</span>
+        <span><b>10,042</b> tests passing</span>
+        <span><b>AGPL-3.0</b> — your code, no lock-in</span>
+      </div>
+    </div>
+
+    <!-- ── How it works ─────────────────────────────────────────────── -->
+    <section id="how">
+      <div class="wrap center">
+        <p class="eyebrow">How it works</p>
+        <h2>One project. Two authors.</h2>
+        <p class="sub">
+          The agent never guesses from pixels and never edits behind your back. It reads
+          the same structured model the canvas renders from, and proposes work you approve.
+        </p>
+      </div>
+      <div class="wrap">
+        <div class="loop reveal">
+          <div class="step"><p class="who who-h">Human</p><h4>Edit on a real canvas</h4><p>Drag, type, restyle. Every edit becomes a new project revision.</p></div>
+          <div class="step"><p class="who who-a">Agent</p><h4>Read structured context</h4><p>Typed sections, stable element ids, your selection — not a DOM dump.</p></div>
+          <div class="step"><p class="who who-a">Agent</p><h4>Propose a change set</h4><p>Related edits arrive as one reviewable proposal. The canvas doesn’t move.</p></div>
+          <div class="step"><p class="who who-h">Human</p><h4>Amend, skip, apply</h4><p>Rewrite a value, drop an operation, apply the rest. One undo reverses it all.</p></div>
+          <div class="step"><p class="who who-w">WEAVE</p><h4>Gate the publish</h4><p>An agent can request a publish. Only your click performs one.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Feature 1: ChangeSets ────────────────────────────────────── -->
+    <section style="padding-top:0">
+      <div class="wrap">
+        <div class="feature reveal">
+          <div class="feature-copy">
+            <p class="eyebrow">Change sets</p>
+            <h3>Transactions, not one-off edits.</h3>
+            <p>
+              “Make this homepage feel more premium” becomes <strong>one proposal</strong>
+              containing several operations — not five edits fired at your canvas one at a time.
+            </p>
+            <ul>
+              <li><span class="tick" aria-hidden="true">✓</span> See every operation’s before and after</li>
+              <li><span class="tick" aria-hidden="true">✓</span> Rewrite any value the agent chose</li>
+              <li><span class="tick" aria-hidden="true">✓</span> Skip the parts you don’t want</li>
+              <li><span class="tick" aria-hidden="true">✓</span> Accepted work commits atomically as one revision</li>
+              <li><span class="tick" aria-hidden="true">✓</span> A single undo reverses the whole transaction</li>
+            </ul>
+          </div>
+          <div class="frame">
+            <img src="/marketing/proposal.webp" width="1600" height="1000" loading="lazy"
+                 alt="The proposal review panel: an agent proposal titled Make the homepage feel more premium, showing three operations with their current and proposed values, one marked edited by you, and an Apply 3 changes button." />
+          </div>
+        </div>
+
+        <!-- ── Feature 2: publish gate ──────────────────────────────── -->
+        <div class="feature flip reveal" id="safety">
+          <div class="feature-copy">
+            <p class="eyebrow">Safety</p>
+            <h3>The agent can ask. Only you can ship.</h3>
+            <p>
+              There is no code path from a tool call to a deploy. A publish request opens an
+              approval card showing the revision and exactly what changed since the last one.
+            </p>
+            <ul>
+              <li><span class="tick" aria-hidden="true">✓</span> Destructive tools are annotated as destructive</li>
+              <li><span class="tick" aria-hidden="true">✓</span> Proposals pinned to a revision — stale ones are refused</li>
+              <li><span class="tick" aria-hidden="true">✓</span> Three validation layers before anything touches your project</li>
+              <li><span class="tick" aria-hidden="true">✓</span> No <code style="font-family:var(--mono);font-size:13px">eval</code>, no arbitrary code, no <code style="font-family:var(--mono);font-size:13px">javascript:</code> URLs</li>
+            </ul>
+          </div>
+          <div class="frame">
+            <img src="/marketing/publish.webp" width="1600" height="1000" loading="lazy"
+                 alt="The Agent panel showing an Agent requested publish card with the revision, a summary of what changed, and Approve and publish alongside Cancel buttons." />
+          </div>
+        </div>
+
+        <!-- ── Feature 3: inspector ─────────────────────────────────── -->
+        <div class="feature reveal">
+          <div class="feature-copy">
+            <p class="eyebrow">Inspectable</p>
+            <h3>Every claim is checkable, live.</h3>
+            <p>
+              The Inspector reports what is <em>actually</em> registered right now — read from
+              the runtime, not from our documentation.
+            </p>
+            <ul>
+              <li><span class="tick" aria-hidden="true">✓</span> Which global carries the runtime, and which API members exist</li>
+              <li><span class="tick" aria-hidden="true">✓</span> Every tool’s JSON schema and annotations</li>
+              <li><span class="tick" aria-hidden="true">✓</span> Which tools are exposed vs hidden, and why</li>
+              <li><span class="tick" aria-hidden="true">✓</span> The last invocation each tool received</li>
+            </ul>
+          </div>
+          <div class="frame">
+            <img src="/marketing/inspector.webp" width="1600" height="1000" loading="lazy"
+                 alt="The WebMCP Inspector dialog listing the detected runtime host, capability pills for registerTool, unregisterTool, getTools and more, and all nine tools with their access level and exposure state." />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Numbers ──────────────────────────────────────────────────── -->
+    <section id="numbers">
+      <div class="wrap center">
+        <p class="eyebrow">Efficiency</p>
+        <h2>Structure costs less than pixels.</h2>
+        <p class="sub">
+          Measured on this build’s demo page. An agent reading structured context instead of
+          the raw DOM spends roughly a tenth of the tokens — and every id it gets back is
+          directly actionable, so there is no second “find the element” step.
+        </p>
+      </div>
+      <div class="wrap">
+        <div class="stats reveal">
+          <div class="stat"><b>~3.1k</b><span>tokens to read the whole page</span><small>12,335 chars structured</small></div>
+          <div class="stat"><b>~30k</b><span>tokens for the same page as raw DOM</span><small>119,875 chars</small></div>
+          <div class="stat"><b>10×</b><span>less to read, every time</span><small>measured, not estimated</small></div>
+          <div class="stat"><b>1</b><span>proposal replaces five verify loops</span><small>one commit, one undo</small></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Tools ────────────────────────────────────────────────────── -->
+    <section id="tools" style="padding-top:0">
+      <div class="wrap center">
+        <p class="eyebrow">The surface</p>
+        <h2>Nine typed tools.</h2>
+        <p class="sub">
+          Registered with the browser’s model-context runtime. Descriptions state product
+          intent; annotations declare real consequences. Element tools appear only while
+          you have something selected.
+        </p>
+      </div>
+      <div class="wrap">
+        <div class="tools reveal">
+          <div class="tools-scroll">
+            <table>
+              <thead><tr><th scope="col">Tool</th><th scope="col">Access</th><th scope="col">What it does</th></tr></thead>
+              <tbody>
+                <tr><td class="n">weave_get_context</td><td><span class="tag t-read">read</span></td><td class="d">Page, revision, selection, typed sections, bounded element tree</td></tr>
+                <tr><td class="n">weave_get_selection</td><td><span class="tag t-read">read</span></td><td class="d">Full detail for the element you have selected</td></tr>
+                <tr><td class="n">weave_add_section</td><td><span class="tag t-write">write</span></td><td class="d">Insert a designed section from the shared library</td></tr>
+                <tr><td class="n">weave_update_element</td><td><span class="tag t-write">write</span></td><td class="d">Text, name, visibility, safe styles and attributes</td></tr>
+                <tr><td class="n">weave_move_element</td><td><span class="tag t-write">write</span></td><td class="d">Reorder or re-parent a section or element</td></tr>
+                <tr><td class="n">weave_delete_element</td><td><span class="tag t-dest">destructive</span></td><td class="d">Remove an element and its children</td></tr>
+                <tr><td class="n">weave_propose_changes</td><td><span class="tag t-gate">human review</span></td><td class="d">Submit several edits as one reviewable proposal</td></tr>
+                <tr><td class="n">weave_validate_site</td><td><span class="tag t-read">read</span></td><td class="d">Real findings plus an explainable agent-readiness score</td></tr>
+                <tr><td class="n">weave_publish_site</td><td><span class="tag t-gate">human approval</span></td><td class="d">Request a publish — only your click performs one</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="honest reveal">
+          <h3>Where this actually stands</h3>
+          <ul>
+            <li>WebMCP is an emerging standard. If your browser exposes no runtime, the editor says so plainly — the tools stay usable through the built-in developer console, which calls the identical implementations.</li>
+            <li>Agent context is pull-based: WEAVE bumps a revision on every change and agents re-read. It does not pretend to push page content the shipping API cannot push.</li>
+            <li>“Publish” means persist and download a complete, agent-ready bundle. No third-party deployment provider is contacted or simulated.</li>
+            <li>The runtime shipped with a published site is read-only plus same-site navigation, by design.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Close ────────────────────────────────────────────────────── -->
+    <section class="close">
+      <div class="glow" aria-hidden="true"><canvas data-aurora></canvas></div>
+      <div class="wrap center" style="position:relative">
+        <h2 style="max-width:24ch">Open it and give your agent something to read.</h2>
+        <p class="sub" style="margin-top:14px">
+          A live storefront, nine tools, and an approval gate. No install, no account.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary btn-lg" href="/app/">Open the editor</a>
+          <a class="btn btn-light btn-lg" href="https://github.com/Aaditya1273/WEAVE" rel="noopener">Read the source</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <p>
+        WEAVE is a derivative work of Revyme, an open-source visual web builder.
+        Licensed under AGPL-3.0; upstream copyright and attribution are preserved in
+        the repository’s <span style="font-family:var(--mono)">NOTICE</span>.
+      </p>
+      <div class="nav-links">
+        <a href="https://github.com/Aaditya1273/WEAVE" rel="noopener">GitHub</a>
+        <a href="/app/">Open the editor</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+  /* Aurora — ported from WEAVE's own AuroraBackground code component
+     (src/code/project/default-code-components/AuroraBackground.ts), which
+     renders the same curtain inside the editor. Same shader maths, vanilla
+     WebGL instead of React, recoloured to the WEAVE palette and rotated so
+     the bands run diagonally.
+
+     It degrades quietly: no WebGL, a failed compile, or reduced-motion all
+     leave the CSS gradient underneath doing the job. */
+  (function () {
+    'use strict';
+    var nodes = document.querySelectorAll('canvas[data-aurora]');
+    if (!nodes.length) return;
+
+    var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    var VERT = 'attribute vec2 aPos;void main(){gl_Position=vec4(aPos,0.0,1.0);}';
+    var FRAG = [
+      'precision highp float;',
+      'uniform vec2 uRes; uniform float uTime;',
+      'uniform vec3 uA, uB, uC, uBg;',
+      'uniform float uScale, uSpread, uIntensity, uRot;',
+      'float hash(vec2 p){return fract(sin(dot(p,vec2(41.31,289.07)))*43758.5453);}',
+      'float vnoise(vec2 p){vec2 i=floor(p);vec2 f=fract(p);vec2 u=f*f*(3.0-2.0*f);',
+      ' float a=hash(i),b=hash(i+vec2(1.0,0.0)),c=hash(i+vec2(0.0,1.0)),d=hash(i+vec2(1.0,1.0));',
+      ' return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);}',
+      'float fbm(vec2 p){float s=0.0,a=0.5;for(int i=0;i<5;i++){s+=a*vnoise(p);p*=2.03;a*=0.5;}return s;}',
+      /* One ribbon: the upstream curtain maths, isolated so several can be
+         stacked at different heights and phases. Returns the band falloff. */
+      'float band(vec2 uv, float t, float ph, float base, float spread){',
+      '  float ripple = fbm(vec2(uv.x*uScale + t + ph, uv.y*1.6 - t*0.4));',
+      '  float drift  = fbm(vec2(uv.x*uScale*0.5 - t*0.6 + ph, 3.7));',
+      '  float centre = base + (drift-0.5)*0.34 + (ripple-0.5)*0.16;',
+      '  float dy = (uv.y - centre)/max(0.01, spread);',
+      '  float c = exp(-dy*dy);',
+      '  float streak = 0.62 + 0.38*fbm(vec2(uv.x*uScale*5.0 + t*1.6 + ph, 11.3));',
+      '  return c*streak;',
+      '}',
+      'void main(){',
+      ' vec2 uv = gl_FragCoord.xy / uRes;',
+      ' float ar = uRes.x / max(1.0, uRes.y);',
+      ' vec2 p = uv - 0.5; p.x *= ar;',
+      ' float cs = cos(uRot), sn = sin(uRot);',
+      ' p = vec2(p.x*cs - p.y*sn, p.x*sn + p.y*cs);',
+      ' p.x /= ar; uv = p + 0.5;',
+      ' float t = uTime * 0.08;',
+      /* Three ribbons at different heights, phases and widths. Distinct
+         bands are what make it read as silk rather than fog. */
+      ' float b1 = band(uv, t,  0.0, 0.26, uSpread);',
+      ' float b2 = band(uv, t, 17.3, 0.44, uSpread*0.72);',
+      ' float b3 = band(uv, t, 41.7, 0.60, uSpread*1.25);',
+      ' float m1 = clamp(fbm(vec2(uv.x*uScale*1.3 + t*0.9, 21.1)), 0.0, 1.0);',
+      ' vec3 tintA = mix(uA, uB, m1);',
+      ' vec3 tintB = mix(uB, uC, m1);',
+      /* Coloured bloom across the whole band, plus a hot near-white core from
+         a high power of the same falloff — that pairing is what gives the
+         reference its bright centre line with a colour rim. */
+      ' vec3 col = uBg;',
+      ' col += tintA * b1 * uIntensity;',
+      ' col += tintB * b2 * uIntensity * 0.9;',
+      ' col += mix(uA, uC, 0.5) * b3 * uIntensity * 0.6;',
+      ' float core = pow(b1, 5.0) + pow(b2, 5.0)*0.9 + pow(b3, 6.0)*0.5;',
+      ' col += vec3(0.92, 0.90, 0.94) * core * uIntensity * 0.95;',
+      ' gl_FragColor = vec4(col, 1.0);',
+      '}'
+    ].join('\n');
+
+    function rgb(hex) {
+      var n = parseInt(hex.slice(1), 16);
+      return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+    }
+
+    function start(canvas) {
+      var gl = canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'low-power' });
+      if (!gl) return;
+
+      function compile(type, src) {
+        var sh = gl.createShader(type);
+        gl.shaderSource(sh, src); gl.compileShader(sh);
+        return gl.getShaderParameter(sh, gl.COMPILE_STATUS) ? sh : null;
+      }
+      var vs = compile(gl.VERTEX_SHADER, VERT), fs = compile(gl.FRAGMENT_SHADER, FRAG);
+      if (!vs || !fs) return;
+      var prog = gl.createProgram();
+      gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+      gl.useProgram(prog);
+
+      var buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+      var aPos = gl.getAttribLocation(prog, 'aPos');
+      gl.enableVertexAttribArray(aPos);
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+      var u = {};
+      ['uRes','uTime','uA','uB','uC','uBg','uScale','uSpread','uIntensity','uRot']
+        .forEach(function (n) { u[n] = gl.getUniformLocation(prog, n); });
+
+      /* WEAVE palette: accent orange into violet, with a warm highlight. */
+      var A = rgb('#ff6a4d'), B = rgb('#a78bfa'), C = rgb('#e879f9'), BG = rgb('#08080a');
+      gl.uniform3f(u.uA, A[0], A[1], A[2]);
+      gl.uniform3f(u.uB, B[0], B[1], B[2]);
+      gl.uniform3f(u.uC, C[0], C[1], C[2]);
+      gl.uniform3f(u.uBg, BG[0], BG[1], BG[2]);
+      gl.uniform1f(u.uScale, 2.2);
+      gl.uniform1f(u.uSpread, 0.070);
+      gl.uniform1f(u.uIntensity, 0.95);
+      gl.uniform1f(u.uRot, -0.16);
+
+      /* A background layer nobody inspects closely does not need 3x pixels. */
+      var dpr = Math.min(1.5, window.devicePixelRatio || 1);
+      function resize() {
+        var w = Math.max(1, Math.round(canvas.clientWidth * dpr));
+        var h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+        if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.uniform2f(u.uRes, canvas.width, canvas.height);
+      }
+      function render(sec) { resize(); gl.uniform1f(u.uTime, sec); gl.drawArrays(gl.TRIANGLES, 0, 6); }
+
+      render(12.0);
+      canvas.classList.add('on');
+      if (reduced) {
+        if (window.ResizeObserver) new ResizeObserver(function () { render(12.0); }).observe(canvas);
+        return;
+      }
+
+      /* Only burn GPU while the curtain is actually on screen and the tab is
+         visible — this sits behind a hero people scroll past in seconds. */
+      var raf = 0, t0 = performance.now(), visible = true;
+      function tick(now) { render(((now - t0) / 1000)); raf = requestAnimationFrame(tick); }
+      function play() { if (!raf && visible && !document.hidden) raf = requestAnimationFrame(tick); }
+      function stop() { if (raf) { cancelAnimationFrame(raf); raf = 0; } }
+      if (window.IntersectionObserver) {
+        new IntersectionObserver(function (es) { visible = es[0].isIntersecting; visible ? play() : stop(); },
+          { rootMargin: '120px' }).observe(canvas);
+      } else { visible = true; }
+      document.addEventListener('visibilitychange', function () { document.hidden ? stop() : play(); });
+      play();
+    }
+
+    Array.prototype.forEach.call(nodes, function (c) { try { start(c); } catch (e) { /* CSS fallback stands */ } });
+  })();
+  </script>
 </body>
 </html>
