@@ -10,7 +10,7 @@ Build visually. Direct your agent. Publish an agent-ready website.
 
 [![Live](https://img.shields.io/badge/live-weave--webmcp.vercel.app-8b5cf6?style=flat-square)](https://weave-webmcp.vercel.app)
 [![WebMCP](https://img.shields.io/badge/WebMCP-document.modelContext-22c55e?style=flat-square)](#7-webmcp-tools)
-[![Tests](https://img.shields.io/badge/tests-10%2C044%20passing-brightgreen?style=flat-square)](#proof)
+[![Tests](https://img.shields.io/badge/tests-10%2C093%20passing-brightgreen?style=flat-square)](#proof)
 [![Typecheck](https://img.shields.io/badge/tsc-clean-brightgreen?style=flat-square)](#proof)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square)](LICENSE)
 [![Vercel](https://img.shields.io/badge/deployed%20on-Vercel-000?style=flat-square&logo=vercel)](https://weave-webmcp.vercel.app)
@@ -60,7 +60,7 @@ in plain language:
 ```
 
 What you will see, in order: `weave_get_context` in the activity feed labelled `agent`; the
-tool list growing from 5 to 9 when you click the hero; a proposal card with **nothing changed
+tool list growing from 25 to 39 when you click the hero; a proposal card with **nothing changed
 on the canvas**; a review overlay where you amend one value and skip one operation; one
 revision committed, one `Ctrl+Z` reversing all of it; a red *stale* banner with Apply
 disabled; a readiness score whose checks you can click; and a publish-approval card.
@@ -83,12 +83,12 @@ runs in CI so the numbers cannot drift from the code
 
 | What the agent reads | Size | ~Tokens | vs WEAVE |
 |---|---:|---:|---:|
-| **WEAVE** — `weave_get_context`, JSON body | 12,335 chars | **3,084** | 1.0× |
-| **WEAVE** — same call, full MCP envelope on the wire (body carried twice: `content` + `structuredContent`) | 27,206 chars | 6,802 | 2.2× |
-| Page source, `app/page.client.tsx` — "just read the file" | 42,683 chars | 10,671 | 3.5× |
-| Canvas DOM, one breakpoint, inline styles | 32,728 chars | 8,182 | 2.7× |
-| Canvas DOM **as the canvas renders it** — Desktop, Tablet and Mobile side by side | 98,184 chars | 24,546 | **8.0×** |
-| Live canvas iframe DOM, measured in the browser ([FLOW.md §5](FLOW.md#5-credits-and-efficiency--with-real-measured-numbers)) | 119,875 chars | ~30,000 | **9.7×** |
+| **WEAVE** — `weave_get_context`, JSON body | 12,794 chars | **3,199** | 1.0× |
+| **WEAVE** — same call, full MCP envelope on the wire (body carried twice: `content` + `structuredContent`) | 28,164 chars | 7,041 | 2.2× |
+| Page source, `app/page.client.tsx` — "just read the file" | 42,683 chars | 10,671 | 3.3× |
+| Canvas DOM, one breakpoint, inline styles | 32,728 chars | 8,182 | 2.6× |
+| Canvas DOM **as the canvas renders it** — Desktop, Tablet and Mobile side by side | 98,184 chars | 24,546 | **7.7×** |
+| Live canvas iframe DOM, measured in the browser ([FLOW.md §5](FLOW.md#5-credits-and-efficiency--with-real-measured-numbers)) | 119,875 chars | ~30,000 | **9.3×** |
 | Screenshot of the editor, 1600×950 PNG ([`docs/proof/editor-1600x950.png`](docs/proof/editor-1600x950.png)) | 501,758 bytes | vision tokens | no element ids to act on |
 
 **Where the bigger saving is — round trips.** A five-part change done the usual way is five
@@ -97,11 +97,11 @@ mutations, each followed by a screenshot or DOM read to verify what happened:
 ```text
 simple way   5 × ( mutate → re-read the DOM to verify )   ≈ 5 × 24,546  ≈ 123,000 tokens of reads
 WebMCP way   get_context → ONE propose_changes (5 ops) → human applies → get_context
-                                                          ≈ 2 ×  3,084  ≈   6,200 tokens of reads
+                                                          ≈ 2 ×  3,199  ≈   6,400 tokens of reads
 ```
 
-≈ **8–10× less to read per call, and one proposal instead of five verify loops** — roughly
-20× fewer read tokens for the same job. Every id in the WEAVE answer is a real `data-id` in the
+≈ **8–9× less to read per call, and one proposal instead of five verify loops** — roughly
+19× fewer read tokens for the same job. Every id in the WEAVE answer is a real `data-id` in the
 source, stable across the round trip, so the agent never pays to *re-discover* the page. And
 staleness prevents the most expensive failure of all: applying work against state that moved,
 then paying again to detect and undo it. WEAVE refuses that up front, for free.
@@ -208,20 +208,42 @@ variants, animate, localise, manage CMS collections, edit code, preview, undo. P
 
 ## 4. What agents can do
 
-Read the project and the human's selection, add library sections, update content and safe
-styles, move and delete elements, propose multi-operation changes for review, validate the
-site, and *request* a publish. Every write goes through the editor's validated mutation
-pipeline: an agent cannot write arbitrary code, touch the DOM, execute anything, or reach the
-project without passing schema validation, command-layer validation and the editor's own
-generators.
+Across **48 tools**: read the project, the human's selection, one element's resolved styles
+or one section in depth; **search** the page for what to act on; add library sections;
+update content, safe styles and attributes; duplicate, group, ungroup, retag, move, link and
+delete elements; create, open and delete **pages**; set **design tokens**; declare **page
+variables**, bind styles to them and drive them from clicks and hovers; add **motion**; add
+**languages** and translate into them; add and update **content-collection** items; promote
+elements into reusable **components** and place them; leave the human a **note** instead of
+an edit; **undo** and **redo**; read what changed since a revision; turn a validation finding
+into concrete operations; propose multi-operation changes for review; validate the site; and
+*request* a publish.
+
+Every write goes through the same `WeaveOperation` pipeline, so all of it is proposable,
+atomically appliable, refused when stale, and reversible in one undo. An agent cannot write
+arbitrary code, touch the DOM, execute anything, or reach the project without passing schema
+validation, command-layer validation and the editor's own generators.
 
 ## 5. Security posture
 
 Three validation layers: JSON schema → command-layer allow-lists → the editor's own code
-generators. No `eval`. `javascript:` and `data:` URLs are refused. `href` is refused on
-non-link elements because this editor's dialect requires a Next.js `<Link>`. Tool descriptions
-are purely descriptive — a test asserts they contain no instruction-shaped text, because a
-tool description is an injection surface. The WEAVE layer reads and stores no secrets.
+generators. No `eval`. Every vocabulary an agent can reach is an **allow-list, not a
+deny-list**:
+
+- **styles** — a fixed set of visual and layout properties; nothing that positions content
+  off-canvas, and `url(…)` values must be `http(s)`;
+- **attributes** — `href`, `src`, `alt`, `title`, `target`, `rel`, `aria-label`, each with its
+  own value check. `javascript:`, `data:` and `vbscript:` destinations are refused;
+- **tags** — semantic containers and text only, so `weave_change_element_tag` can never
+  produce a `<script>`, `<iframe>`, `<object>` or form input;
+- **motion** — transform and paint properties only, so an animation cannot move content out
+  of the document flow;
+- **content collections** — field names must exist in the collection's own schema.
+
+Destructive and irreversible tools declare `destructiveHint` or `requiresHumanApproval` and
+are enforced as such in code. Tool descriptions are purely descriptive — a test asserts they
+contain no instruction-shaped text, because a tool description is an injection surface. The
+WEAVE layer reads and stores no secrets.
 
 ## 6. Architecture
 
@@ -232,7 +254,8 @@ tool description is an injection surface. The WEAVE layer reads and stores no se
             │                                       │
             │                    src/weave/webmcp/adapter.ts   (feature-detected)
             │                    src/weave/webmcp/registry.ts  (schema · cancel · adaptive)
-            │                    src/weave/tools.ts            (9 product tools)
+            │                    src/weave/tools.ts            (the 9 core tools)
+            │                    src/weave/tools-advanced.ts   (39 more, adaptively exposed)
             │                                       │
             │                          ┌────────────┴────────────┐
             │                          │                         │
@@ -266,27 +289,86 @@ adapter is `src/weave/`; mutations are the upstream queue. File-by-file notes ar
 
 | Tool | Hints | Exposed | What it does |
 |---|---|---|---|
-| `weave_get_context` | read-only · idempotent | always | Project, page, revision, viewports, selection, typed sections, bounded element tree, pending proposals, capabilities |
-| `weave_get_selection` | read-only · idempotent | with a selection | Full detail for the selected element: type, parent, children, layout, styles, attributes |
+| Tool | Hints | Exposed | What it does |
+|---|---|---|---|
+| **Reading the project** ||||
+| `weave_get_context` | read-only | always | Project, page, revision, viewports, selection, typed sections, bounded element tree, pending proposals, capabilities |
+| `weave_get_selection` | read-only | selection | Full detail for the selected element: type, parent, children, layout, styles, attributes |
+| `weave_find_elements` | read-only | always | Search by text, layer name, tag, semantic role or section — how an agent locates a target the human has not selected |
+| `weave_get_subtree` | read-only | selection | One section or container in detail, to a requested depth, without re-reading the whole page |
+| `weave_get_element_styles` | read-only | selection | Resolved (as-rendered) styles, not just declared ones — inherited values included |
+| `weave_get_page_behaviour` | read-only | always | The page's variables and which elements respond to clicks and hovers |
+| `weave_get_history` | read-only | always | Recent activity, with the true source (`agent`, `console`, `you`) of each action |
+| `weave_diff_since` | read-only | always | What changed since a revision you read earlier — the recovery path from `CHANGESET_STALE` |
+| `weave_screenshot_element` | read-only | selection | Renders one element to an image, for when appearance is genuinely the question |
+| **Editing content and structure** ||||
 | `weave_add_section` | write | always | Inserts an oracle-validated library section (`hero`, `products`, `features`, `testimonials`, `pricing`, `faq`, `cta`, `contact`, `footer`, `header`) |
-| `weave_update_element` | write · idempotent | with a selection | Text, layer name, visibility, allow-listed styles, allow-listed attributes |
-| `weave_move_element` | write · idempotent | with a selection | Reorder among siblings or re-parent, cycle-checked |
-| `weave_delete_element` | **destructive** | with a selection | Removes an element and its children; undoable |
-| `weave_propose_changes` | write · **requires human approval** | always | Submits several operations as ONE reviewable ChangeSet; changes nothing until applied |
-| `weave_validate_site` | read-only · idempotent | always | Real findings with element ids, plus the explainable readiness score |
-| `weave_publish_site` | idempotent · **requires human approval** | always | Requests a publish; only a human click performs one |
+| `weave_update_element` | write · idempotent | selection | Text, layer name, visibility, allow-listed styles, allow-listed attributes |
+| `weave_move_element` | write · idempotent | selection | Reorder among siblings or re-parent, cycle-checked |
+| `weave_duplicate_element` | write | selection | Copies an element and its children, with fresh ids, as the next sibling |
+| `weave_group_elements` | write | always | Wraps siblings in one container, preserving order and page position |
+| `weave_ungroup_element` | **destructive** | selection | Lifts a container's children into its place and removes the container |
+| `weave_change_element_tag` | write · idempotent | selection | Retag to a semantic element (`h1`…`h6`, `section`, `nav`, `ul`, …); tags that load or execute are refused |
+| `weave_set_link` | write · idempotent | selection | Gives an element a destination, converting it to a real Next.js `Link` first if needed |
+| `weave_delete_element` | **destructive** | selection | Removes an element and its children; undoable |
+| **Pages** ||||
+| `weave_list_pages` | read-only | always | Every route, which is open, how many sections each has |
+| `weave_create_page` | write | always | Adds a real page (server wrapper + client body) and returns its route |
+| `weave_open_page` | write · idempotent | multi-page | Switches which page reads and edits apply to — and which the human sees |
+| `weave_delete_page` | **destructive** · **approval** | multi-page | Removes a page; the home page and the open page are refused |
+| **Design system and behaviour** ||||
+| `weave_set_design_token` | write · idempotent | always | Creates or updates a named value (brand colour, heading size) that elements bind to |
+| `weave_list_design_tokens` | read-only | always | The project's tokens and their current values |
+| `weave_set_variable` | write · idempotent | always | Creates or updates a page variable — state the page can hold |
+| `weave_bind_style_variable` | write · idempotent | selection + variables | Drives one style from a variable instead of a fixed value |
+| `weave_add_interaction` | write · idempotent | selection + variables | On click or hover, set a variable — real behaviour in the published site |
+| `weave_animate_element` | write · idempotent | selection | Appear-on-scroll, hover or loop motion; only transform and paint properties |
+| `weave_remove_animation` | **destructive** | selection | Clears one animation, leaving the element intact |
+| **Languages** ||||
+| `weave_list_locales` | read-only | multi-locale | The languages the site publishes in, and which is the original |
+| `weave_add_locale` | write · idempotent | always | Adds a language, with the routes and message files the site needs |
+| `weave_translate_element` | write · idempotent | selection + locales | Writes an element's text in another language; the original is preserved as the default message |
+| `weave_read_translation` | read-only | selection + locales | What an element currently says in a given language |
+| **Content collections** ||||
+| `weave_list_collections` | read-only | has collections | Collections, their fields and item counts |
+| `weave_upsert_collection_item` | write · **approval** | has collections | Adds or updates structured content; unknown field names are refused |
+| `weave_remove_collection_item` | **destructive** · **approval** | has collections | Deletes one item from a collection |
+| **Components** ||||
+| `weave_create_component` | write · **approval** | selection | Promotes an element into a reusable component |
+| `weave_insert_component` | write | has components | Places a copy of an existing component |
+| `weave_list_components` | read-only | has components | The components this project defines |
+| **Review, history and publishing** ||||
+| `weave_add_comment` | write | always | Leaves a note for the human instead of editing — the page is untouched |
+| `weave_list_comments` | read-only | always | Notes on this page, including ones the human left for the agent |
+| `weave_explain_finding` | read-only | always | Turns a validation finding into concrete operations ready for `weave_propose_changes` |
+| `weave_undo` | write | something to undo | Reverses the last change as one step, including a whole applied ChangeSet |
+| `weave_redo` | write | something to redo | Re-applies the most recently undone change |
+| `weave_propose_changes` | write · **approval** | always | Submits several operations as ONE reviewable ChangeSet; changes nothing until applied |
+| `weave_validate_site` | read-only | always | Real findings with element ids, plus the explainable readiness score |
+| `weave_publish_site` | idempotent · **approval** | always | Requests a publish; only a human click performs one |
+
+**48 tools**, of which **25 are exposed on a freshly loaded EMBER project and 39 once the
+human selects an element** — the rest appear as the project gains the capability they act on.
 
 Hints are the MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
 `openWorldHint`) plus WEAVE's own `requiresHumanApproval` — declared *and* enforced in code.
-Element-scoped tools are exposed **adaptively**: they are registered when the human has a
-selection and unregistered when it clears, so an agent sees a relevant surface rather than
-every capability at once. The Inspector shows what is exposed and what is hidden, and why.
+
+**The surface is adaptive, and follows the project as well as the cursor.** Element-scoped
+tools are registered when the human has a selection and unregistered when it clears. Page
+tools appear once the site has more than one page; language tools once it has more than one
+language; collection and component tools once those exist; undo and redo only when there is
+something to undo. A one-page site with no translations never shows an agent the thirteen
+tools it could not use — which is the point: a relevant surface, not every capability at
+once. The Inspector shows what is exposed, what is hidden, and why.
 
 Every result is `{ ok: true, ... }` or `{ ok: false, error: { code, message } }`, returned as
 `structuredContent` alongside `content`. Codes include `UNKNOWN_TOOL`, `INVALID_ARGS`,
 `CANCELLED`, `ELEMENT_NOT_FOUND`, `NO_TARGET`, `AMBIGUOUS_TARGET`, `UNSUPPORTED_STYLE`,
 `UNSUPPORTED_ATTR`, `NOT_A_LINK`, `INVALID_MOVE`, `UNSUPPORTED_SECTION`, `CHANGESET_STALE`,
-`CHANGESET_EMPTY`, `PUBLISH_ALREADY_PENDING`.
+`CHANGESET_EMPTY`, `PUBLISH_ALREADY_PENDING`, `UNSUPPORTED_TAG`, `UNSUPPORTED_MOTION`,
+`VARIABLE_NOT_FOUND`, `LOCALE_NOT_FOUND`, `PAGE_NOT_FOUND`, `PAGE_IS_OPEN`,
+`CANNOT_DELETE_HOME`, `COLLECTION_NOT_FOUND`, `UNKNOWN_FIELD`, `ITEM_NOT_FOUND`,
+`COMPONENT_NOT_FOUND`, `NOTHING_TO_UNDO`, `NOTHING_TO_REDO`, `CAPTURE_UNAVAILABLE`.
 
 ### How WEAVE uses the WebMCP API
 
@@ -366,7 +448,7 @@ functional requirement.
 npx tsc --noEmit                                     # typecheck (vitest does not)
 npm run lint
 npx vitest run                                       # full unit + integration suite
-npx vitest run src/weave                             # WEAVE behaviour + payload tests
+npx vitest run src/weave                             # WEAVE behaviour, tool and payload tests
 npx playwright test src/weave/e2e                    # the collaboration loop in a browser
 docs/proof/capture.sh "npx vitest run src/weave" docs/proof/tests-weave.png   # regenerate a proof image
 ```
@@ -393,7 +475,8 @@ additions are released under the same license.
 
 | Area | Where |
 |---|---|
-| Unified action pipeline, ChangeSets, revisions, validation, publish gate, manifest, adapter, registry, tools | `src/weave/**` (see [`src/weave/README.md`](src/weave/README.md)) |
+| Unified action pipeline (24 operations), ChangeSets, revisions, validation, publish gate, manifest, adapter, registry | `src/weave/**` (see [`src/weave/README.md`](src/weave/README.md)) |
+| The 48 WebMCP tools | `src/weave/tools.ts` (core 9), `src/weave/tools-advanced.ts` (39) |
 | Agent panel, proposal review overlay, WebMCP Inspector | `src/weave/ui/**` |
 | Behaviour tests, payload measurements, Playwright collaboration spec | `src/weave/weave.test.ts`, `src/weave/payload.test.ts`, `src/weave/e2e/` |
 | Editor wiring (`'agent'` panel, rail button, init, overlay mounts) | `src/App.tsx`, `src/code/stores/left-panel-store.ts`, `src/editor/left-toolbar/*` |

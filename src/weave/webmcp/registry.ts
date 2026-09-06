@@ -18,6 +18,12 @@
 import { getDefaultStore } from 'jotai';
 import { trace } from '@/shared/debug-trace';
 import { selectedIdsAtom } from '@/code/stores/store';
+import { projectFS } from '@/code/project/project-fs';
+import { activeFilePathAtom } from '@/code/project/active-file-store';
+import { getHistoryState } from '@/code/mutation/history';
+import { getI18nConfig } from '@/code/project/locale-ops';
+import { listCollections } from '@/code/project/cms-ops';
+import { getPageVariables } from '@/code/features/page-variables';
 import {
   weaveActivityAtom, makeActivityEntry, appendActivity,
   webMcpStatusAtom, toolSurfaceVersionAtom, type ActivityKind,
@@ -53,10 +59,31 @@ export interface WeaveToolSchema {
   additionalProperties?: boolean;
 }
 
-/** Editor state the adaptive surface reasons about. */
+/** Editor state the adaptive surface reasons about.
+ *
+ *  The surface follows the PROJECT, not just the cursor: a single-page site
+ *  with no translations and no content collections has no reason to show an
+ *  agent the page, locale and collection tools, and a page with no variables
+ *  cannot bind one. Keeping the exposed set to what is actually actionable is
+ *  the whole point of an adaptive surface — an agent that sees 40 tools on a
+ *  one-page site spends its budget reading capabilities it cannot use. */
 export interface ToolApplicability {
   hasSelection: boolean;
   selectionCount: number;
+  /** The site has somewhere else to go — page and link tools become useful. */
+  hasMultiplePages: boolean;
+  /** The site is published in more than one language. */
+  hasLocales: boolean;
+  /** The project defines at least one content collection. */
+  hasCollections: boolean;
+  /** The project defines at least one reusable component. */
+  hasComponents: boolean;
+  /** The active page declares at least one variable to bind or drive. */
+  hasVariables: boolean;
+  /** Something can be undone right now. */
+  canUndo: boolean;
+  /** Something can be redone right now. */
+  canRedo: boolean;
 }
 
 export interface WeaveToolAnnotations {
@@ -253,7 +280,25 @@ function toMcpResult(result: WeaveToolResult): WebMcpToolResult {
 
 function applicability(): ToolApplicability {
   const selection = store.get(selectedIdsAtom);
-  return { hasSelection: selection.length > 0, selectionCount: selection.length };
+  // Each probe is defensive: the surface is recomputed on every selection
+  // change, and a throwing probe would take the whole tool set down with it.
+  const safe = <T>(fn: () => T, fallback: T): T => {
+    try { return fn(); } catch { return fallback; }
+  };
+  const files = safe(() => projectFS.listFiles(), [] as string[]);
+  const history = safe(() => getHistoryState(), { canUndo: false, canRedo: false, undoSize: 0, redoSize: 0 });
+  const activeCode = safe(() => projectFS.readFile(store.get(activeFilePathAtom)) ?? '', '');
+  return {
+    hasSelection: selection.length > 0,
+    selectionCount: selection.length,
+    hasMultiplePages: files.filter((f) => f.endsWith('page.client.tsx')).length > 1,
+    hasLocales: safe(() => getI18nConfig().locales.length > 1, false),
+    hasCollections: safe(() => listCollections().length > 0, false),
+    hasComponents: files.some((f) => f.startsWith('components/') && f.endsWith('.tsx')),
+    hasVariables: safe(() => getPageVariables(activeCode).length > 0, false),
+    canUndo: history.canUndo,
+    canRedo: history.canRedo,
+  };
 }
 
 /** The tools that should be exposed for the CURRENT editor state. */

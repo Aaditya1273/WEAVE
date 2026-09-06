@@ -58,8 +58,10 @@ These were tested against a simulated runtime identical in shape to ChatGPT's:
 | Check | Result |
 |---|---|
 | Tools register in the **top-level frame** | ✅ `TOP` — ChatGPT ignores tools registered inside iframes; ours are not |
-| Tools exposed with **nothing selected** | 5 — `get_context`, `add_section`, `propose_changes`, `validate_site`, `publish_site` |
-| Tools after you **select an element** | 9 — adds `get_selection`, `update_element`, `move_element`, `delete_element` |
+| Tools defined | **48** |
+| Tools exposed with **nothing selected** | **25** — reads, search, sections, pages, tokens, variables, comments, proposals, validate, publish |
+| Tools after you **select an element** | **39** — adds the 14 element-scoped ones (`get_selection`, `update_element`, `duplicate`, `change_tag`, `set_link`, `animate`, `screenshot`, …) |
+| Tools still hidden | **9** — gated on capabilities this project has yet to use (locales, components, undo/redo) |
 | Agent-called `weave_get_context` | ✅ returns 7 typed sections |
 | Agent-called `weave_propose_changes` | ✅ returns `awaiting_human_review`, card appears in WEAVE |
 | Activity feed labels agent calls | ✅ rows marked `agent` |
@@ -68,6 +70,11 @@ These were tested against a simulated runtime identical in shape to ChatGPT's:
 > `update_element`. That is the adaptive surface working. Either **select the hero
 > first**, or let the agent use `weave_propose_changes` (which takes explicit targets).
 > Both are good demo beats — just don't be surprised by it live.
+>
+> The surface follows the PROJECT too, not just the cursor: `weave_list_locales` appears
+> once the site has a second language, the component tools once a component exists, and
+> `weave_undo` only when there is something to undo. If a judge asks why there aren't 48
+> tools on screen, that is the answer — and it's the same argument as the token numbers.
 
 ### 1.4 Reset to a clean demo state
 
@@ -132,7 +139,7 @@ Click **Open the editor**.
 **Now click the hero headline on the canvas.**
 
 **Point at:** *Selection* in Shared context changes, and the **tool list grows from
-5 to 9**.
+25 to 39**.
 
 > "The tool surface is adaptive. Element tools only exist while I'm pointing at
 > something — so the agent sees a relevant surface, not every capability at once."
@@ -222,7 +229,7 @@ buttons.
 **Click "Inspect"** in the Agent panel.
 
 **Point at:** Host object `document.modelContext`, the capability pills, and the
-9 tools with **exposed / hidden** state.
+48 tools with **exposed / hidden** state.
 
 > "And none of this is a claim — the Inspector reports what's actually registered
 > right now: which global carries the runtime, which parts of the API it implements,
@@ -366,7 +373,7 @@ front for free.
 
 | Criterion | Your evidence on screen |
 |---|---|
-| **WebMCP leverage** | The Inspector (host, capabilities, 9 schemas, exposed/hidden), adaptive surface growing 5→9, real annotations |
+| **WebMCP leverage** | The Inspector (host, capabilities, 48 schemas, exposed/hidden), adaptive surface growing 25→39 on selection, real annotations enforced in code |
 | **Execution** | It's a genuine visual builder, not a demo shell. 609 test files / 10,042 tests, 9 Playwright specs, production build live |
 | **Potential impact** | Agent-ready output: manifest + runtime in the published bundle. Plain Next.js — no lock-in |
 | **Creativity & ambition** | ChangeSet negotiation, revision staleness, one-step undo of an agent transaction |

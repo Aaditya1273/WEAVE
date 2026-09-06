@@ -21,6 +21,7 @@ import { activeFilePathAtom } from '@/code/project/active-file-store';
 import type { CanvasNode } from '@/code/parsing/parser';
 
 import './tools';
+import './tools-advanced';
 import { executeWeaveTool, applicableTools } from './webmcp/registry';
 import { createWeaveStarterProject, STARTER_HERO_ID } from './starter-project';
 import { resetRevisionForTest } from './revision';
@@ -106,7 +107,7 @@ describe('payload: one "what is on the page" read', () => {
     expect(dom.length / envelope.length).toBeGreaterThanOrEqual(2.5); // and after the envelope doubles it
   });
 
-  it('the tool surface is adaptive: 5 tools with nothing selected, 9 with a selection', () => {
+  it('the tool surface is adaptive: it grows only when the human selects something', () => {
     const idle = applicableTools().map((t) => t.name);
     store.set(selectedIdsAtom, [STARTER_HERO_ID]);
     const selected = applicableTools().map((t) => t.name);
@@ -121,8 +122,16 @@ describe('payload: one "what is on the page" read', () => {
       '',
     ].join('\n'));
 
-    expect(idle).toHaveLength(5);
-    expect(selected).toHaveLength(9);
-    expect(added.sort()).toEqual(['weave_delete_element', 'weave_get_selection', 'weave_move_element', 'weave_update_element']);
+    // The surface follows the project AND the cursor, so the exact counts move
+    // as capabilities are added. What must hold is the shape: element-scoped
+    // tools are hidden until something is selected, and nothing is ever lost
+    // by selecting.
+    expect(idle.length).toBeGreaterThan(0);
+    expect(selected.length).toBeGreaterThan(idle.length);
+    for (const name of idle) expect(selected).toContain(name);
+    for (const name of ['weave_update_element', 'weave_delete_element', 'weave_get_selection', 'weave_move_element']) {
+      expect(idle, `${name} should be hidden with no selection`).not.toContain(name);
+      expect(selected, `${name} should appear with a selection`).toContain(name);
+    }
   });
 });

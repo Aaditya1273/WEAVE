@@ -40,6 +40,14 @@ const KIND_LABEL: Record<string, string> = {
   update_text: 'Text', update_style: 'Style', update_attrs: 'Attributes',
   rename: 'Name', set_visible: 'Visibility', move: 'Order',
   add_section: 'New section', delete: 'Delete',
+  duplicate: 'Duplicate', wrap: 'Group', unwrap: 'Ungroup',
+  change_tag: 'Element type', set_link: 'Link',
+  set_token: 'Design token', set_variable: 'Variable',
+  bind_style_variable: 'Binding',
+  add_interaction: 'Interaction', remove_interaction: 'Interaction',
+  animate: 'Animation', remove_animation: 'Animation',
+  set_translation: 'Translation', set_metadata: 'Page metadata',
+  cms_upsert: 'Content', cms_remove: 'Content',
 };
 
 function OperationRow({
@@ -52,7 +60,13 @@ function OperationRow({
   }, [operation.after]);
 
   const target = (operation.operation as { target?: string }).target;
-  const isDelete = operation.operation.op === 'delete';
+  // Destructive ops are flagged in the review UI so the human sees what will
+  // be removed before they apply, not after.
+  const isDelete = operation.operation.op === 'delete'
+    || operation.operation.op === 'unwrap'
+    || operation.operation.op === 'cms_remove'
+    || operation.operation.op === 'remove_animation'
+    || operation.operation.op === 'remove_interaction';
 
   return (
     <div

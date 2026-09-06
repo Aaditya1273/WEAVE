@@ -23,6 +23,7 @@ import { validateSite, setToolCountProvider } from './validate';
 import { currentRevision, settleRevision } from './revision';
 import {
   executeOperation, SECTION_TYPES, getNode,
+  ALLOWED_TAGS, ANIMATION_KINDS, PAGE_VARIABLE_TYPES,
   type WeaveOperation,
 } from './commands';
 import {
@@ -322,7 +323,23 @@ const OPERATION_DOC =
   '{"op":"set_visible","target":ELEMENT_ID,"visible":BOOL} · ' +
   '{"op":"move","target":ELEMENT_ID,"index":N} or {"op":"move","target":ELEMENT_ID,"parent":ELEMENT_ID,"index":N} · ' +
   `{"op":"add_section","sectionType":ONE_OF(${SECTION_TYPES.join('|')}),"afterElementId":ELEMENT_ID} · ` +
-  '{"op":"delete","target":ELEMENT_ID}';
+  '{"op":"delete","target":ELEMENT_ID} · ' +
+  '{"op":"duplicate","target":ELEMENT_ID} · ' +
+  '{"op":"wrap","targets":[ELEMENT_ID,…],"name":TEXT} · ' +
+  '{"op":"unwrap","target":ELEMENT_ID} · ' +
+  `{"op":"change_tag","target":ELEMENT_ID,"tag":ONE_OF(${[...ALLOWED_TAGS].join('|')})} · ` +
+  '{"op":"set_link","target":ELEMENT_ID,"href":ROUTE_OR_URL} · ' +
+  '{"op":"set_token","name":TOKEN,"value":CSS_VALUE,"category":CATEGORY} · ' +
+  `{"op":"set_variable","name":CAMEL_CASE,"value":TEXT,"varType":ONE_OF(${PAGE_VARIABLE_TYPES.join('|')})} · ` +
+  '{"op":"bind_style_variable","target":ELEMENT_ID,"property":CSS_PROP,"varName":VARIABLE} · ' +
+  '{"op":"add_interaction","target":ELEMENT_ID,"trigger":ONE_OF(click|mouseEnter|mouseLeave),"varName":VARIABLE,"value":TEXT} · ' +
+  '{"op":"remove_interaction","target":ELEMENT_ID,"trigger":TRIGGER,"varName":VARIABLE} · ' +
+  `{"op":"animate","target":ELEMENT_ID,"kind":ONE_OF(${ANIMATION_KINDS.join('|')}),"props":{MOTION},"transition":{TIMING}} · ` +
+  '{"op":"remove_animation","target":ELEMENT_ID,"kind":KIND} · ' +
+  '{"op":"set_translation","target":ELEMENT_ID,"locale":LOCALE,"text":TEXT} · ' +
+  '{"op":"set_metadata","title":TEXT,"description":TEXT} · ' +
+  '{"op":"cms_upsert","collection":SLUG,"itemId":ITEM_ID,"values":{FIELD:VALUE}} · ' +
+  '{"op":"cms_remove","collection":SLUG,"itemId":ITEM_ID}';
 
 defineWeaveTool({
   name: 'weave_propose_changes',

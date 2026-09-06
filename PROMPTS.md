@@ -22,6 +22,7 @@ one atomic commit, one revision, one undo** — which is the point worth showing
 | Editable styles | colour, background, typography, spacing, sizing, border, radius, shadow, opacity, flex/grid — **not** `position` |
 | `href` | only on real link elements, never a `<div>` |
 | Element tools | appear **only when something is selected** — with nothing selected the agent must use `weave_propose_changes` |
+| Tool surface | **48 defined**; 25 exposed with nothing selected, 39 with an element selected, the rest gated on capabilities the project has yet to use |
 
 **One rule that matters:** a proposal cannot add a section *and then* edit inside
 it — the new element ids do not exist until the proposal is applied. Add first,

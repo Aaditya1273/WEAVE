@@ -23,7 +23,7 @@ dispatcher an external agent reaches. There is no second write path.
 
 | File | Owns |
 |---|---|
-| `commands.ts` | **The unified action pipeline.** `WeaveOperation` union, validation, safety allow-lists, `executeOperation`, atomic `applyOperations` with rollback |
+| `commands.ts` | **The unified action pipeline.** The 24-member `WeaveOperation` union, validation, safety allow-lists (styles, attributes, tags, motion), `executeOperation`, atomic `applyOperations` with rollback |
 | `changeset.ts` | ChangeSet model and lifecycle: propose → amend/skip → apply/reject, staleness, atomic commit as one undo step |
 | `revision.ts` | The project revision counter every ChangeSet is pinned to; coalesced so a drag is one revision |
 | `context.ts` | The bounded, semantic snapshot an agent reads, plus the change subscription |
@@ -32,7 +32,8 @@ dispatcher an external agent reaches. There is no second write path.
 | `manifest.ts` | `weave.manifest.json` + the `weave-agent.js` runtime shipped with a published site |
 | `webmcp/adapter.ts` | The only file touching `document.modelContext`. Feature detection, register/unregister, capability report |
 | `webmcp/registry.ts` | Tool definitions, schema validation, cancellation, telemetry, the adaptive tool surface |
-| `tools.ts` | The nine `weave_*` tools |
+| `tools.ts` | The nine core `weave_*` tools — read, edit one element, propose, validate, publish |
+| `tools-advanced.ts` | The other 39: search, structure, pages, design tokens, variables and interactions, motion, languages, content collections, components, comments, history, and the deeper reads |
 | `starter-project.ts` | The EMBER demo storefront, composed from oracle-validated blueprints |
 | `first-run.ts` | Fail-safe first-load camera focus and project naming |
 | `zip.ts` | Dependency-free store-only zip writer |
@@ -41,7 +42,9 @@ dispatcher an external agent reaches. There is no second write path.
 | `ui/ProposalOverlay.tsx` | The ChangeSet review surface — inspect, amend, skip, apply |
 | `ui/InspectorOverlay.tsx` | Live WebMCP state: runtime, capabilities, schemas, last invocations |
 | `init.ts` | One call, invoked from `App.tsx` after mount |
-| `weave.test.ts` | 46 behaviour tests against the real store, parser, queue and history |
+| `weave.test.ts` | Behaviour tests against the real store, parser, queue and history |
+| `tools-advanced.test.ts` | Every extended tool against the same real pipeline — outcomes in the project, not return values |
+| `payload.test.ts` | The measured token comparison behind the README's efficiency claim |
 | `e2e/weave-collaboration.spec.ts` | 9 Playwright specs covering the whole loop in a browser |
 
 ## Changes outside this directory

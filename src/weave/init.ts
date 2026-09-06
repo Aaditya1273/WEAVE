@@ -7,6 +7,7 @@
 // Called once from App.tsx after mount, the same pattern initCloudPlugin uses.
 
 import './tools';
+import './tools-advanced';
 import { subscribeWeaveContext } from './context';
 import { subscribeRevision } from './revision';
 import { watchChangeSetStaleness } from './changeset';

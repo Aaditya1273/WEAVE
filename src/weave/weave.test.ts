@@ -18,6 +18,7 @@ import { checkFile } from '@/code/oracle/check-file';
 import { parseJSXToNodes } from '@/code/parsing/parser';
 
 import './tools';
+import './tools-advanced';
 import { executeWeaveTool, getWeaveTools, applicableTools, getLastInvocation, syncToolSurface } from './webmcp/registry';
 import { isWebMcpAvailable, webMcpCapabilities, registerWebMcpTool, unregisterWebMcpTool, registeredToolNames } from './webmcp/adapter';
 import {
@@ -96,13 +97,17 @@ beforeEach(() => { seed(); });
 // ─── 1. Tool registration ───────────────────────────────────────────────────
 
 describe('tool registration', () => {
-  it('defines nine product tools with honest safety annotations', () => {
+  it('defines the core product tools with honest safety annotations', () => {
     const byName = Object.fromEntries(getWeaveTools().map((t) => [t.name, t]));
-    expect(Object.keys(byName).sort()).toEqual([
+    // The surface grows; these nine are the core contract every other tool is
+    // built on, and each must keep existing under its own name.
+    for (const name of [
       'weave_add_section', 'weave_delete_element', 'weave_get_context', 'weave_get_selection',
       'weave_move_element', 'weave_propose_changes', 'weave_publish_site',
       'weave_update_element', 'weave_validate_site',
-    ]);
+    ]) {
+      expect(byName[name], `${name} must exist`).toBeTruthy();
+    }
     // Read-only tools must not claim write capability, and vice versa.
     for (const name of ['weave_get_context', 'weave_get_selection', 'weave_validate_site']) {
       expect(byName[name].annotations.readOnlyHint).toBe(true);
@@ -115,6 +120,19 @@ describe('tool registration', () => {
     expect(byName.weave_delete_element.annotations.destructiveHint).toBe(true);
     expect(byName.weave_publish_site.annotations.requiresHumanApproval).toBe(true);
     expect(byName.weave_propose_changes.annotations.requiresHumanApproval).toBe(true);
+
+    // Every tool, core or not, declares hints that match what it does: a
+    // read-only tool can never be destructive, and anything that deletes the
+    // human's work must say so.
+    for (const tool of getWeaveTools()) {
+      if (tool.annotations.readOnlyHint) {
+        expect(tool.annotations.destructiveHint, `${tool.name} is read-only`).toBe(false);
+        expect(tool.kind, `${tool.name} is read-only`).toBe('read');
+      }
+    }
+    for (const name of ['weave_ungroup_element', 'weave_remove_collection_item', 'weave_delete_page']) {
+      expect(byName[name].annotations.destructiveHint, `${name} destroys content`).toBe(true);
+    }
   });
 
   it('carries valid JSON schemas and injection-free descriptions', () => {
@@ -636,7 +654,8 @@ describe('publish is human-gated', () => {
     expect(bundle.get(FILE)).toContain('section-hero');
     const manifest = JSON.parse(bundle.get('weave.manifest.json')!);
     expect(manifest.format).toBe('weave-capability-manifest');
-    expect(manifest.editorTools).toHaveLength(9);
+    expect(manifest.editorTools.length).toBe(getWeaveTools().length);
+    expect(manifest.editorTools.length).toBeGreaterThanOrEqual(9);
     expect(manifest.siteTools.map((t: any) => t.name)).toEqual([
       'weave_site_get_context', 'weave_site_read_section', 'weave_site_navigate',
     ]);
