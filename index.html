@@ -547,6 +547,7 @@
       </p>
       <div class="nav-links">
         <a href="https://github.com/Aaditya1273/WEAVE" rel="noopener">GitHub</a>
+        <a href="/demo/">Published demo site</a>
         <a href="/app/">Open the editor</a>
       </div>
     </div>
@@ -757,8 +758,10 @@
         name: 'weave_list_editor_tools',
         description:
           'List the WebMCP tools the WEAVE editor exposes once it is open, with what each one does and '
-          + 'whether it reads, writes, destroys content or requires human approval. Use this to find out '
-          + 'what an agent can actually do inside WEAVE before opening the editor.',
+          + 'whether it reads, writes, destroys content or requires human approval. Filter by category to '
+          + 'see only the safe read-only tools, only the ones that change the page, only destructive ones, '
+          + 'or only those a human must approve. Use this to find out what an agent can actually do inside '
+          + 'WEAVE before opening the editor.',
         annotations: { title: 'List the editor’s tools', readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
         inputSchema: {
           type: 'object',
@@ -806,8 +809,27 @@
             totalInEditor: 48,
             shown: list.length,
             filter: want,
-            note: 'The editor registers all 48 on load. Open ' + EDITOR + ' to call them.',
+            note: 'The editor registers all 48 on load, each with a full input schema. Open ' + EDITOR + ' to call them.',
             tools: list
+          });
+        }
+      },
+      {
+        name: 'weave_open_demo_site',
+        description:
+          'Open the demo site that WEAVE published — an ordinary website carrying its own WebMCP '
+          + 'capability manifest and runtime, so it exposes weave_site_get_context, '
+          + 'weave_site_read_section and weave_site_navigate to the next agent that visits it. '
+          + 'This is what WEAVE produces, as opposed to the editor that produces it.',
+        annotations: { title: 'Open the published demo site', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+        run: function () {
+          try { window.location.assign('/demo/'); } catch (e) { /* navigation blocked */ }
+          return ok({
+            ok: true,
+            navigatingTo: '/demo/',
+            exposes: ['weave_site_get_context', 'weave_site_read_section', 'weave_site_navigate'],
+            note: 'An agent-ready site: its tools come from the manifest WEAVE published with it.'
           });
         }
       },

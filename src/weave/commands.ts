@@ -206,6 +206,159 @@ export const SECTION_TYPE_TO_BLUEPRINT: Record<string, string> = {
 };
 export const SECTION_TYPES = Object.keys(SECTION_TYPE_TO_BLUEPRINT);
 
+// ─── Machine-readable operation grammar ─────────────────────────────────────
+//
+// The SAME 24 operations `validateOperation` enforces, expressed as JSON
+// Schema so an agent can construct a ChangeSet from the schema alone instead
+// of parsing prose. `weave_propose_changes` publishes this as its `operations`
+// item schema — a `oneOf` discriminated on `op` — so every branch carries its
+// own required fields, enums and descriptions.
+//
+// Kept beside the validator on purpose: a new operation that is not described
+// here is invisible to an agent, and a test asserts the two stay in step.
+
+const ELEMENT_ID = { type: 'string', description: 'Stable element id (a real data-id from weave_get_context or weave_find_elements).' };
+
+export function operationSchemas(): Array<Record<string, unknown>> {
+  const op = (name: WeaveOperationKind, title: string, props: Record<string, unknown>, required: string[]) => ({
+    type: 'object',
+    title,
+    properties: { op: { const: name, description: title }, ...props },
+    required: ['op', ...required],
+    additionalProperties: false,
+  });
+  return [
+    op('update_text', 'Replace an element’s text', {
+      target: ELEMENT_ID,
+      value: { type: 'string', description: 'The new text.' },
+    }, ['target', 'value']),
+    op('update_style', 'Restyle an element', {
+      target: ELEMENT_ID,
+      styles: {
+        type: 'object',
+        description: 'camelCase CSS property to value, e.g. { "fontSize": "56px", "color": "#111" }.',
+        propertyNames: { enum: [...ALLOWED_STYLE_KEYS] },
+        additionalProperties: { type: 'string' },
+      },
+    }, ['target', 'styles']),
+    op('update_attrs', 'Set HTML attributes', {
+      target: ELEMENT_ID,
+      attrs: {
+        type: 'object',
+        description: 'Attribute to value. Destinations must be a route, anchor, or http(s)/mailto:/tel: URL.',
+        propertyNames: { enum: Object.keys(ALLOWED_ATTRS) },
+        additionalProperties: { type: 'string' },
+      },
+    }, ['target', 'attrs']),
+    op('rename', 'Rename an element’s layer', {
+      target: ELEMENT_ID,
+      name: { type: 'string', description: 'New layer name shown to the human.' },
+    }, ['target', 'name']),
+    op('set_visible', 'Show or hide an element', {
+      target: ELEMENT_ID,
+      visible: { type: 'boolean', description: 'false hides it; true restores it.' },
+    }, ['target', 'visible']),
+    op('move', 'Move or reorder an element', {
+      target: ELEMENT_ID,
+      parent: { type: 'string', description: 'Move inside this element. Omit to reorder among current siblings.' },
+      index: { type: 'number', minimum: 0, description: 'Zero-based position among siblings.' },
+    }, ['target']),
+    op('add_section', 'Add a designed section', {
+      sectionType: { type: 'string', enum: SECTION_TYPES, description: 'Which kind of section to add.' },
+      afterElementId: { type: 'string', description: 'Insert after this section. Omit for the end of the page.' },
+    }, ['sectionType']),
+    op('delete', 'Delete an element (destructive)', { target: ELEMENT_ID }, ['target']),
+    op('duplicate', 'Duplicate an element', { target: ELEMENT_ID }, ['target']),
+    op('wrap', 'Group elements into a container', {
+      targets: { type: 'array', items: ELEMENT_ID, minItems: 1, description: 'Elements to group. They must share one parent.' },
+      name: { type: 'string', description: 'Layer name for the new container.' },
+    }, ['targets']),
+    op('unwrap', 'Ungroup a container (destructive)', { target: ELEMENT_ID }, ['target']),
+    op('change_tag', 'Change an element’s HTML tag', {
+      target: ELEMENT_ID,
+      tag: { type: 'string', enum: [...ALLOWED_TAGS], description: 'The semantic element to become.' },
+    }, ['target', 'tag']),
+    op('set_link', 'Give an element a destination', {
+      target: ELEMENT_ID,
+      href: { type: 'string', description: '"/about", "#pricing", "https://…", "mailto:…" or "tel:…".' },
+    }, ['target', 'href']),
+    op('set_token', 'Create or update a design token', {
+      name: { type: 'string', pattern: '^[a-zA-Z][a-zA-Z0-9-]*$', description: 'Token name without the -- prefix, e.g. "brand-primary".' },
+      value: { type: 'string', description: 'e.g. "#6366f1" or "48px".' },
+      category: { type: 'string', enum: ['color', 'typography', 'spacing', 'margin', 'radius', 'shadow', 'border', 'image', 'video', 'other'] },
+      label: { type: 'string', description: 'Optional human-readable label.' },
+    }, ['name', 'value']),
+    op('set_variable', 'Create or update a page variable', {
+      name: { type: 'string', pattern: '^[a-z][a-zA-Z0-9]*$', description: 'camelCase name, e.g. "heroFade".' },
+      value: { type: 'string', description: 'Starting value, as text.' },
+      varType: { type: 'string', enum: [...PAGE_VARIABLE_TYPES], description: 'What kind of value it holds. Defaults to text.' },
+    }, ['name', 'value']),
+    op('bind_style_variable', 'Drive a style from a variable', {
+      target: ELEMENT_ID,
+      property: { type: 'string', enum: [...ALLOWED_STYLE_KEYS], description: 'Which style follows the variable.' },
+      varName: { type: 'string', description: 'Name of an existing page variable.' },
+    }, ['target', 'property', 'varName']),
+    op('add_interaction', 'Respond to a click or hover', {
+      target: ELEMENT_ID,
+      trigger: { type: 'string', enum: [...INTERACTION_TRIGGERS], description: 'What the visitor does.' },
+      varName: { type: 'string', description: 'Page variable to change.' },
+      value: { type: 'string', description: 'Value to set it to.' },
+    }, ['target', 'trigger', 'varName', 'value']),
+    op('remove_interaction', 'Remove an interaction (destructive)', {
+      target: ELEMENT_ID,
+      trigger: { type: 'string', enum: [...INTERACTION_TRIGGERS] },
+      varName: { type: 'string' },
+    }, ['target', 'trigger', 'varName']),
+    op('animate', 'Animate an element', {
+      target: ELEMENT_ID,
+      kind: { type: 'string', enum: [...ANIMATION_KINDS], description: 'appear: on scroll into view. hover: while hovered. loop: continuous.' },
+      props: {
+        type: 'object',
+        description: 'Target values, e.g. { "opacity": "1", "y": "0" }.',
+        propertyNames: { enum: [...ALLOWED_MOTION_PROPS] },
+        additionalProperties: { type: 'string' },
+      },
+      transition: {
+        type: 'object',
+        description: 'Timing, e.g. { "duration": "0.6", "ease": "easeOut" }.',
+        properties: {
+          duration: { type: 'string', description: 'Seconds.' },
+          delay: { type: 'string', description: 'Seconds before it starts.' },
+          ease: { type: 'string', description: 'e.g. "easeOut", "linear".' },
+          repeatType: { type: 'string', enum: ['loop', 'reverse', 'mirror'], description: 'Loop animations only.' },
+        },
+        additionalProperties: false,
+      },
+    }, ['target', 'kind', 'props']),
+    op('remove_animation', 'Remove an animation (destructive)', {
+      target: ELEMENT_ID,
+      kind: { type: 'string', enum: [...ANIMATION_KINDS] },
+    }, ['target', 'kind']),
+    op('set_translation', 'Write an element’s text in another language', {
+      target: ELEMENT_ID,
+      locale: { type: 'string', description: 'A language code the site already has, e.g. "hi".' },
+      text: { type: 'string', description: 'The translated text.' },
+    }, ['target', 'locale', 'text']),
+    op('set_metadata', 'Set the page title and description', {
+      title: { type: 'string', description: 'The page title.' },
+      description: { type: 'string', description: 'A one or two sentence description.' },
+    }, []),
+    op('cms_upsert', 'Add or update collection content', {
+      collection: { type: 'string', description: 'Collection slug, from weave_list_collections.' },
+      itemId: { type: 'string', description: 'Existing item to update. Omit to add a new one.' },
+      values: {
+        type: 'object',
+        description: 'Field id to value. Field ids must exist in that collection’s schema.',
+        additionalProperties: true,
+      },
+    }, ['collection', 'values']),
+    op('cms_remove', 'Delete collection content (destructive)', {
+      collection: { type: 'string', description: 'Collection slug.' },
+      itemId: { type: 'string', description: 'Id of the item to delete.' },
+    }, ['collection', 'itemId']),
+  ];
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 export function getNode(id: unknown): CanvasNode | null {

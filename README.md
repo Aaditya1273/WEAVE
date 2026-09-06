@@ -15,7 +15,7 @@ Build visually. Direct your agent. Publish an agent-ready website.
 [![License](https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square)](LICENSE)
 [![Vercel](https://img.shields.io/badge/deployed%20on-Vercel-000?style=flat-square&logo=vercel)](https://weave-webmcp.vercel.app)
 
-**[Landing page](https://weave-webmcp.vercel.app)** · **[Open the editor](https://weave-webmcp.vercel.app/app/)** · **[3-minute demo flow](FLOW.md)** · **[Demo prompts](PROMPTS.md)** · **[Proof](#proof)** · **[Simple way vs WebMCP way](#the-simple-way-vs-the-webmcp-way)** · **[Architecture](#6-architecture)**
+**[Landing page](https://weave-webmcp.vercel.app)** · **[Open the editor](https://weave-webmcp.vercel.app/app/)** · **[Published demo site](https://weave-webmcp.vercel.app/demo/)** · **[3-minute demo flow](FLOW.md)** · **[Demo prompts](PROMPTS.md)** · **[Proof](#proof)** · **[Simple way vs WebMCP way](#the-simple-way-vs-the-webmcp-way)** · **[Architecture](#6-architecture)**
 
 </div>
 
@@ -347,19 +347,25 @@ adapter is `src/weave/`; mutations are the upstream queue. File-by-file notes ar
 | `weave_validate_site` | read-only | always | Real findings with element ids, plus the explainable readiness score |
 | `weave_publish_site` | idempotent · **approval** | always | Requests a publish; only a human click performs one |
 
-**48 tools**, of which **25 are exposed on a freshly loaded EMBER project and 39 once the
-human selects an element** — the rest appear as the project gains the capability they act on.
+**48 tools, all registered on page load.** Discovery is never gated: an agent — or a scanner —
+arriving at a freshly loaded editor sees the whole surface. What editor state changes is the
+*order*: `applicableTools` puts what is relevant right now first, and a tool that needs a
+selection says so and returns a `NO_TARGET` naming the way forward (`element_id`, or
+`weave_find_elements`) rather than silently not existing.
+
+`weave_propose_changes` publishes the full operation grammar as a JSON Schema `oneOf` —
+24 branches, each with its own required fields, enums and descriptions — so an agent can
+build a ChangeSet from the schema alone without parsing prose.
 
 Hints are the MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`,
 `openWorldHint`) plus WEAVE's own `requiresHumanApproval` — declared *and* enforced in code.
 
-**The surface is adaptive, and follows the project as well as the cursor.** Element-scoped
-tools are registered when the human has a selection and unregistered when it clears. Page
-tools appear once the site has more than one page; language tools once it has more than one
-language; collection and component tools once those exist; undo and redo only when there is
-something to undo. A one-page site with no translations never shows an agent the thirteen
-tools it could not use — which is the point: a relevant surface, not every capability at
-once. The Inspector shows what is exposed, what is hidden, and why.
+**The surface is adaptive in ordering, not in availability.** Everything is registered on
+load — hiding a capability from a headless visitor only guarantees it is never used. What
+follows the project and the cursor is *relevance*: with an element selected the element
+tools lead; with a second language the translation tools lead; with something to undo,
+`weave_undo` leads. The Agent panel and the readiness score read that relevant set, and the
+Inspector shows the whole surface with its live state.
 
 Every result is `{ ok: true, ... }` or `{ ok: false, error: { code, message } }`, returned as
 `structuredContent` alongside `content`. Codes include `UNKNOWN_TOOL`, `INVALID_ARGS`,
@@ -408,10 +414,15 @@ npm run dev        # editor :3333, canvas sandbox :5174, preview :5175
 
 Two routes, identical in development and production:
 
-| Route | What it serves |
-|---|---|
-| `/` | The landing page — static HTML, no framework, explains WEAVE and links into the editor |
-| `/app/` | The editor itself |
+| Route | What it serves | WebMCP tools |
+|---|---|---|
+| `/` | The landing page — static HTML, no framework | **3** — `weave_about`, `weave_list_editor_tools`, `weave_open_editor`, `weave_open_demo_site` |
+| `/app/` | The editor itself | **48** — the full authoring surface |
+| `/demo/` | A site *published by* WEAVE, carrying its own manifest and runtime | **3** — `weave_site_get_context`, `weave_site_read_section`, `weave_site_navigate` |
+
+All three register on page load. The last one is the point of the whole project: an
+agent-built site is itself agent-ready, and `/demo/` is somewhere you can verify that
+rather than take it on trust.
 
 Open <http://localhost:3333>, then **Open the editor**. A fresh standalone session boots on
 **EMBER**, a hand-built ceramics storefront (hero, products, features, testimonials, FAQ, call
@@ -484,6 +495,7 @@ additions are released under the same license.
 | EMBER starter project, first-run camera and naming | `src/weave/starter-project.ts`, `src/weave/first-run.ts`, one branch in `src/ProjectLoader.tsx` |
 | Published-site agent runtime and capability manifest | `src/weave/manifest.ts` |
 | Single-origin deployment | `vercel.json`, `build:vercel`, `base` support in the two iframe Vite configs |
+| Landing-page and published-site WebMCP surfaces | `index.html`, `scripts/build-demo-site.mjs` |
 | Proof images and the script that regenerates them | `docs/proof/` |
 | Landing page and route split (`/` landing, `/app/` editor) | `index.html`, `app/index.html`, two-entry build in `vite.config.ts`, `vercel.json` |
 | Branding | `app/index.html`, `src/editor/header/LeftHeader.tsx`, `package.json` |

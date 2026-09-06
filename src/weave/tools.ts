@@ -22,8 +22,8 @@ import { pendingPublishAtom, lastValidationAtom } from './store';
 import { validateSite, setToolCountProvider } from './validate';
 import { currentRevision, settleRevision } from './revision';
 import {
-  executeOperation, SECTION_TYPES, getNode,
-  ALLOWED_TAGS, ANIMATION_KINDS, PAGE_VARIABLE_TYPES,
+  executeOperation, SECTION_TYPES, getNode, operationSchemas,
+  ALLOWED_STYLE_KEYS, ALLOWED_ATTRS,
   type WeaveOperation,
 } from './commands';
 import {
@@ -196,8 +196,18 @@ defineWeaveTool({
       text: { type: 'string', description: 'New text content for a text element.' },
       name: { type: 'string', description: 'New layer name, used by humans and agents to refer to the element.' },
       visible: { type: 'boolean', description: 'false hides the element; true restores it.' },
-      styles: { type: 'object', description: 'CSS properties as camelCase keys with string values, e.g. { "fontSize": "56px" }.' },
-      attrs: { type: 'object', description: 'HTML attributes: href, src, alt, title, target, rel, aria-label.' },
+      styles: {
+        type: 'object',
+        description: 'CSS properties as camelCase keys with string values, e.g. { "fontSize": "56px" }.',
+        propertyNames: { enum: [...ALLOWED_STYLE_KEYS] },
+        additionalProperties: { type: 'string' },
+      },
+      attrs: {
+        type: 'object',
+        description: 'HTML attributes. Destinations must be a route, anchor, or http(s)/mailto:/tel: URL.',
+        propertyNames: { enum: Object.keys(ALLOWED_ATTRS) },
+        additionalProperties: { type: 'string' },
+      },
     },
     additionalProperties: false,
   },
@@ -319,33 +329,6 @@ defineWeaveTool({
 
 // ─── weave_propose_changes ──────────────────────────────────────────────────
 
-const OPERATION_DOC =
-  'Each operation is an object with an "op" field: ' +
-  '{"op":"update_text","target":ELEMENT_ID,"value":TEXT} · ' +
-  '{"op":"rename","target":ELEMENT_ID,"name":TEXT} · ' +
-  '{"op":"update_style","target":ELEMENT_ID,"styles":{CSS}} · ' +
-  '{"op":"update_attrs","target":ELEMENT_ID,"attrs":{HTML_ATTRS}} · ' +
-  '{"op":"set_visible","target":ELEMENT_ID,"visible":BOOL} · ' +
-  '{"op":"move","target":ELEMENT_ID,"index":N} or {"op":"move","target":ELEMENT_ID,"parent":ELEMENT_ID,"index":N} · ' +
-  `{"op":"add_section","sectionType":ONE_OF(${SECTION_TYPES.join('|')}),"afterElementId":ELEMENT_ID} · ` +
-  '{"op":"delete","target":ELEMENT_ID} · ' +
-  '{"op":"duplicate","target":ELEMENT_ID} · ' +
-  '{"op":"wrap","targets":[ELEMENT_ID,…],"name":TEXT} · ' +
-  '{"op":"unwrap","target":ELEMENT_ID} · ' +
-  `{"op":"change_tag","target":ELEMENT_ID,"tag":ONE_OF(${[...ALLOWED_TAGS].join('|')})} · ` +
-  '{"op":"set_link","target":ELEMENT_ID,"href":ROUTE_OR_URL} · ' +
-  '{"op":"set_token","name":TOKEN,"value":CSS_VALUE,"category":CATEGORY} · ' +
-  `{"op":"set_variable","name":CAMEL_CASE,"value":TEXT,"varType":ONE_OF(${PAGE_VARIABLE_TYPES.join('|')})} · ` +
-  '{"op":"bind_style_variable","target":ELEMENT_ID,"property":CSS_PROP,"varName":VARIABLE} · ' +
-  '{"op":"add_interaction","target":ELEMENT_ID,"trigger":ONE_OF(click|mouseEnter|mouseLeave),"varName":VARIABLE,"value":TEXT} · ' +
-  '{"op":"remove_interaction","target":ELEMENT_ID,"trigger":TRIGGER,"varName":VARIABLE} · ' +
-  `{"op":"animate","target":ELEMENT_ID,"kind":ONE_OF(${ANIMATION_KINDS.join('|')}),"props":{MOTION},"transition":{TIMING}} · ` +
-  '{"op":"remove_animation","target":ELEMENT_ID,"kind":KIND} · ' +
-  '{"op":"set_translation","target":ELEMENT_ID,"locale":LOCALE,"text":TEXT} · ' +
-  '{"op":"set_metadata","title":TEXT,"description":TEXT} · ' +
-  '{"op":"cms_upsert","collection":SLUG,"itemId":ITEM_ID,"values":{FIELD:VALUE}} · ' +
-  '{"op":"cms_remove","collection":SLUG,"itemId":ITEM_ID}';
-
 defineWeaveTool({
   name: 'weave_propose_changes',
   description:
@@ -356,12 +339,19 @@ defineWeaveTool({
     'of it, apply it or reject it; accepted operations then commit together as one ' +
     'undoable revision. Nothing changes on the page until the human applies it. ' +
     'The proposal is pinned to the current revision and is refused if the human ' +
-    'edits the page first. ' + OPERATION_DOC,
+    'edits the page first. Every operation is one of the 24 shapes in the operations ' +
+    'schema below; each carries its own required fields and allowed values.',
   inputSchema: {
     type: 'object',
     properties: {
       summary: { type: 'string', description: 'One line stating the intent, shown to the human as the proposal title.' },
-      operations: { type: 'array', description: 'The edits to propose, in the order they should apply.', items: { type: 'object' } },
+      operations: {
+        type: 'array',
+        description: 'The edits to propose, in the order they should apply. Each item is one operation.',
+        minItems: 1,
+        maxItems: 25,
+        items: { oneOf: operationSchemas() },
+      },
     },
     required: ['summary', 'operations'],
     additionalProperties: false,

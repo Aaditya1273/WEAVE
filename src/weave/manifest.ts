@@ -239,7 +239,26 @@ export const AGENT_RUNTIME_SOURCE = `/**
   }
 
   if (!modelContext()) return;
-  fetch('/weave.manifest.json')
+
+  // An inline <script id="weave-manifest" type="application/json"> wins: it
+  // needs no network round trip, works from a subdirectory, and works offline
+  // or from file://. The fetch is the fallback for the ordinary case where the
+  // manifest sits beside the site at its root.
+  var inline = typeof document !== 'undefined' && document.getElementById
+    ? document.getElementById('weave-manifest')
+    : null;
+  if (inline) {
+    try {
+      var parsed = JSON.parse(inline.textContent || 'null');
+      if (parsed) { register(parsed); return; }
+    } catch (e) { /* malformed inline manifest — fall through to the fetch */ }
+  }
+
+  // Resolve relative to THIS script, so a site published under a subdirectory
+  // finds its own manifest rather than the domain root's.
+  var here = (document.currentScript && document.currentScript.src) || '';
+  var base = here ? here.slice(0, here.lastIndexOf('/') + 1) : '/';
+  fetch(base + 'weave.manifest.json')
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (manifest) { if (manifest) register(manifest); })
     .catch(function () { /* no manifest published — nothing to expose */ });

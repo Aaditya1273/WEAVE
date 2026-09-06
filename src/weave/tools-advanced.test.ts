@@ -31,7 +31,7 @@ import { resetRevisionForTest, currentRevision, subscribeRevision } from './revi
 import { resetChangeSetsForTest, applyChangeSet, getChangeSet } from './changeset';
 import { resetPublishStateForTest } from './publish';
 import { weaveActivityAtom, lastValidationAtom } from './store';
-import { validateOperation, type WeaveOperation } from './commands';
+import { validateOperation, operationSchemas, OPERATION_KINDS, type WeaveOperation } from './commands';
 
 const FILE = 'app/page.client.tsx';
 const store = getDefaultStore();
@@ -697,6 +697,48 @@ describe('the new operations behave like the original ones', () => {
     expect(undone.ok).toBe(true);
     expect(node(id)!.textContent).toBe(originalText);
     expect(node(id)!.type).toBe(originalTag);
+  });
+
+  it('publishes a machine-readable schema for every operation it accepts', () => {
+    // The whole point: an agent can build a ChangeSet from the schema alone,
+    // without parsing prose. If an operation exists in the validator but not
+    // in the published grammar, it is invisible — so the two must stay level.
+    const schemas = operationSchemas();
+    const documented = schemas.map((x) => (x.properties as { op: { const: string } }).op.const).sort();
+    expect(documented).toEqual([...OPERATION_KINDS].sort());
+
+    for (const schema of schemas) {
+      const props = schema.properties as Record<string, unknown>;
+      const required = schema.required as string[];
+      expect(required[0]).toBe('op');
+      expect(schema.additionalProperties).toBe(false);
+      // Every required field is actually declared, or an agent cannot fill it.
+      for (const field of required) expect(Object.keys(props)).toContain(field);
+      // No bare `object` params: each one names its keys or its value type.
+      for (const [key, value] of Object.entries(props)) {
+        const v = value as { type?: string; propertyNames?: unknown; additionalProperties?: unknown; properties?: unknown };
+        if (v.type === 'object') {
+          expect(v.properties ?? v.propertyNames ?? v.additionalProperties,
+            `${String((props.op as { const: string }).const)}.${key} must describe its shape`).toBeTruthy();
+        }
+      }
+    }
+  });
+
+  it('accepts a proposal built purely from the published schema', async () => {
+    // Construct the call the way an agent would: read the grammar, pick a
+    // branch, fill its required fields. No prose consulted.
+    const schema = operationSchemas().find(
+      (x) => (x.properties as { op: { const: string } }).op.const === 'change_tag',
+    )!;
+    const tagEnum = ((schema.properties as Record<string, { enum?: string[] }>).tag.enum ?? []);
+    expect(tagEnum).toContain('h2');
+
+    const proposal = await call('weave_propose_changes', {
+      summary: 'Built from the schema',
+      operations: [{ op: 'change_tag', target: heroText(), tag: tagEnum[tagEnum.indexOf('h2')] }],
+    }, 'agent');
+    expect(proposal.ok).toBe(true);
   });
 
   it('every tool is registered once, describes itself, and declares honest hints', () => {

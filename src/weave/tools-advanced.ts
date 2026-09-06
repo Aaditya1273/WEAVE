@@ -43,7 +43,7 @@ import { trace } from '@/shared/debug-trace';
 
 import {
   executeOperation, getNode, syncQueueToActiveFile,
-  ALLOWED_TAGS, ANIMATION_KINDS, PAGE_VARIABLE_TYPES,
+  ALLOWED_TAGS, ALLOWED_MOTION_PROPS, ANIMATION_KINDS, PAGE_VARIABLE_TYPES,
   type WeaveOperation,
 } from './commands';
 import { pageFileToRoute, listPages, elementSemanticType } from './context';
@@ -714,7 +714,12 @@ defineWeaveTool({
     properties: {
       element_id: { type: 'string', description: 'Element to animate. Defaults to the current selection.' },
       kind: { type: 'string', enum: [...ANIMATION_KINDS], description: 'appear: on scroll into view. hover: while hovered. loop: continuous.' },
-      properties: { type: 'object', description: 'Target values, e.g. { "opacity": "1", "y": "0" }.' },
+      properties: {
+        type: 'object',
+        description: 'Target values, e.g. { "opacity": "1", "y": "0" }.',
+        propertyNames: { enum: [...ALLOWED_MOTION_PROPS] },
+        additionalProperties: { type: 'string' },
+      },
       duration: { type: 'number', description: 'Seconds the motion takes.' },
       ease: { type: 'string', description: 'Easing, e.g. "easeOut", "linear".' },
     },
@@ -954,7 +959,11 @@ defineWeaveTool({
     properties: {
       collection: { type: 'string', description: 'Collection slug, from weave_list_collections.' },
       item_id: { type: 'string', description: 'Id of an existing item to update. Omit to add a new one.' },
-      values: { type: 'object', description: 'Field id to value, e.g. { "title": "Kiln 01", "price": "48" }.' },
+      values: {
+        type: 'object',
+        description: 'Field id to value, e.g. { "title": "Kiln 01", "price": "48" }. Field ids come from weave_list_collections.',
+        additionalProperties: true,
+      },
     },
     required: ['collection', 'values'],
     additionalProperties: false,

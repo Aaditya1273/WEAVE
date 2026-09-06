@@ -673,7 +673,15 @@ describe('published-site agent runtime', () => {
   it('is dependency-free, feature-detected and registers only read/navigate tools', () => {
     expect(AGENT_RUNTIME_SOURCE).toContain('document.modelContext');
     expect(AGENT_RUNTIME_SOURCE).toContain('navigator.modelContext');
-    expect(AGENT_RUNTIME_SOURCE).toContain("fetch('/weave.manifest.json')");
+    // The manifest is found two ways: an inline <script id="weave-manifest">
+    // (no network, works from a subdirectory or offline), falling back to a
+    // fetch resolved against the script's OWN url — not the domain root, so a
+    // site published under /demo/ finds its own manifest rather than someone
+    // else's.
+    expect(AGENT_RUNTIME_SOURCE).toContain("getElementById('weave-manifest')");
+    expect(AGENT_RUNTIME_SOURCE).toContain("weave.manifest.json");
+    expect(AGENT_RUNTIME_SOURCE).toContain('document.currentScript');
+    expect(AGENT_RUNTIME_SOURCE).not.toContain("fetch('/weave.manifest.json')");
     expect(AGENT_RUNTIME_SOURCE).not.toMatch(/\bimport\s|\brequire\(/);
     // No write path is exposed from a published site.
     expect(AGENT_RUNTIME_SOURCE).not.toMatch(/weave_site_(update|delete|publish)/);
