@@ -301,9 +301,33 @@ function applicability(): ToolApplicability {
   };
 }
 
-/** The tools that should be exposed for the CURRENT editor state. */
+/**
+ * The tools that are RELEVANT to the current editor state.
+ *
+ * This drives the Agent panel's "available now" list and the readiness score.
+ * It is deliberately NOT what gets registered with the runtime — see
+ * `registrableTools`. An agent must be able to DISCOVER the whole surface on
+ * page load (a headless visitor never makes a selection, and a capability it
+ * cannot see is a capability it will never use); what changes with editor
+ * state is which tools are immediately meaningful, not which exist.
+ */
 export function applicableTools(state: ToolApplicability = applicability()): WeaveTool[] {
   return getWeaveTools().filter((t) => (t.appliesWhen ? t.appliesWhen(state) : true));
+}
+
+/**
+ * Every tool, ordered so the ones relevant right now come first.
+ *
+ * The full surface is always registered: discovery is not gated on the human
+ * having clicked something. Tools that need a selection say so in their
+ * description and return a precise `NO_TARGET` telling the agent how to
+ * proceed (pass `element_id`, or call `weave_find_elements`), which is far
+ * more useful to a model than the tool silently not existing.
+ */
+export function registrableTools(state: ToolApplicability = applicability()): WeaveTool[] {
+  const relevant = new Set(applicableTools(state).map((t) => t.name));
+  const all = getWeaveTools();
+  return [...all.filter((t) => relevant.has(t.name)), ...all.filter((t) => !relevant.has(t.name))];
 }
 
 let started = false;
@@ -318,7 +342,7 @@ export function syncToolSurface(): void {
     store.set(webMcpStatusAtom, 'unavailable');
     return;
   }
-  const want = new Set(applicableTools().map((t) => t.name));
+  const want = new Set(registrableTools().map((t) => t.name));
   const have = new Set(registeredToolNames());
   let changed = false;
 
@@ -326,7 +350,7 @@ export function syncToolSurface(): void {
     if (!want.has(name)) { unregisterWebMcpTool(name); changed = true; }
   }
   let allOk = true;
-  for (const tool of applicableTools()) {
+  for (const tool of registrableTools()) {
     if (have.has(tool.name)) continue;
     const ok = registerWebMcpTool({
       name: tool.name,

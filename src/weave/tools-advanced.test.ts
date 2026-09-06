@@ -25,7 +25,7 @@ import { getI18nConfig } from '@/code/project/locale-ops';
 
 import './tools';
 import './tools-advanced';
-import { executeWeaveTool, getWeaveTools, applicableTools } from './webmcp/registry';
+import { executeWeaveTool, getWeaveTools, applicableTools, registrableTools } from './webmcp/registry';
 import { createWeaveStarterProject, STARTER_HERO_ID } from './starter-project';
 import { resetRevisionForTest, currentRevision, subscribeRevision } from './revision';
 import { resetChangeSetsForTest, applyChangeSet, getChangeSet } from './changeset';
@@ -716,26 +716,49 @@ describe('the new operations behave like the original ones', () => {
     }
   });
 
-  it('every tool that defaults to the selection is hidden without one', () => {
-    // A tool exposed with nothing selected must be callable with nothing
-    // selected. Anything that falls back to the human's selection has to be
-    // gated on it, or an agent sees a tool that can only ever return
-    // NO_TARGET — which is worse than not offering it at all.
-    const selectionBacked = [
-      'weave_get_selection', 'weave_update_element', 'weave_move_element', 'weave_delete_element',
-      'weave_duplicate_element', 'weave_ungroup_element', 'weave_change_element_tag', 'weave_set_link',
-      'weave_bind_style_variable', 'weave_add_interaction', 'weave_animate_element',
-      'weave_remove_animation', 'weave_translate_element', 'weave_read_translation',
-      'weave_create_component', 'weave_get_element_styles', 'weave_get_subtree',
-      'weave_screenshot_element',
+  it('registers the WHOLE surface on load, however the editor is sitting', () => {
+    // Discovery is never gated. An agent arriving at a freshly loaded page —
+    // a headless scanner, or a model that has not been told to click anything
+    // — must be able to see every capability WEAVE has. A tool it cannot
+    // discover is a tool it will never use.
+    store.set(selectedIdsAtom, []);
+    const registered = registrableTools().map((t) => t.name);
+    expect(registered.length).toBe(getWeaveTools().length);
+    for (const tool of getWeaveTools()) expect(registered).toContain(tool.name);
+  });
+
+  it('orders the registered surface so what is relevant right now comes first', () => {
+    store.set(selectedIdsAtom, []);
+    const idle = registrableTools();
+    const relevantIdle = applicableTools().map((t) => t.name);
+    // Everything relevant appears before everything that is not.
+    const firstIrrelevant = idle.findIndex((t) => !relevantIdle.includes(t.name));
+    const lastRelevant = idle.map((t) => relevantIdle.includes(t.name)).lastIndexOf(true);
+    expect(lastRelevant).toBeLessThan(firstIrrelevant === -1 ? Infinity : firstIrrelevant);
+
+    // Selecting an element promotes the element tools into the relevant set.
+    store.set(selectedIdsAtom, [STARTER_HERO_ID]);
+    expect(applicableTools().map((t) => t.name)).toContain('weave_update_element');
+  });
+
+  it('a selection-backed tool called with no selection explains how to proceed', async () => {
+    // The counterpart to always registering: these tools must fail usefully,
+    // not merely fail. The message has to name the way forward.
+    store.set(selectedIdsAtom, []);
+    const cases: Array<[string, Record<string, unknown>]> = [
+      ['weave_update_element', { text: 'x' }],
+      ['weave_set_link', { href: '/about' }],
+      ['weave_duplicate_element', {}],
+      ['weave_change_element_tag', { tag: 'h2' }],
+      ['weave_get_element_styles', {}],
     ];
-    const state = {
-      hasSelection: false, selectionCount: 0, hasMultiplePages: true, hasLocales: true,
-      hasCollections: true, hasComponents: true, hasVariables: true, canUndo: true, canRedo: true,
-    };
-    const exposed = applicableTools(state).map((t) => t.name);
-    for (const name of selectionBacked) {
-      expect(exposed, `${name} needs a selection, so it must be hidden without one`).not.toContain(name);
+    for (const [name, args] of cases) {
+      const result = await call(name, args);
+      expect(result.ok, `${name} should refuse without a target`).toBe(false);
+      const error = (result as { error: { code: string; message: string } }).error;
+      expect(error.code).toBe('NO_TARGET');
+      expect(error.message).toMatch(/element_id/);
+      expect(error.message).toMatch(/weave_find_elements/);
     }
   });
 

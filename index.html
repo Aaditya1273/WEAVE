@@ -351,7 +351,7 @@
             <span class="frame-title">WEAVE</span>
           </div>
           <img src="/marketing/hero-editor.webp" width="2200" height="1320"
-               alt="The WEAVE editor: a ceramics storefront on the canvas, with the Agent panel showing a live WebMCP connection, an agent readiness score of 100, nine available tools and a feed of agent tool calls." />
+               alt="The WEAVE editor: a ceramics storefront on the canvas, with the Agent panel showing a live WebMCP connection, an agent readiness score of 100, the available tools and a feed of agent tool calls." />
         </div>
       </div>
     </header>
@@ -360,8 +360,8 @@
     <div class="strip">
       <div class="wrap strip-in">
         <span><b>document.modelContext</b> — current W3C API</span>
-        <span><b>9</b> typed tools, real annotations</span>
-        <span><b>10,042</b> tests passing</span>
+        <span><b>48</b> typed tools, real annotations</span>
+        <span><b>10,093</b> tests passing</span>
         <span><b>AGPL-3.0</b> — your code, no lock-in</span>
       </div>
     </div>
@@ -452,7 +452,7 @@
           </div>
           <div class="frame">
             <img src="/marketing/inspector.webp" width="1600" height="1000" loading="lazy"
-                 alt="The WebMCP Inspector dialog listing the detected runtime host, capability pills for registerTool, unregisterTool, getTools and more, and all nine tools with their access level and exposure state." />
+                 alt="The WebMCP Inspector dialog listing the detected runtime host, capability pills for registerTool, unregisterTool, getTools and more, and every tool with its access level and exposure state." />
           </div>
         </div>
       </div>
@@ -695,6 +695,159 @@
     }
 
     Array.prototype.forEach.call(nodes, function (c) { try { start(c); } catch (e) { /* CSS fallback stands */ } });
+  })();
+  </script>
+
+  <script>
+  /* ── WebMCP on the landing page ──────────────────────────────────────
+     The editor at /app/ exposes WEAVE's full authoring surface. This page
+     is the front door, and an agent arriving here should be able to learn
+     what WEAVE is and get itself into the editor without scraping prose.
+
+     Read-only and navigation only: nothing here changes anything. Every
+     tool is registered on load with no gating, because a headless visitor
+     never clicks and a capability it cannot discover is one it will never
+     use. Feature-detected against the current W3C host with the older
+     drafts as fallbacks; absent an API this block does nothing at all. */
+  (function () {
+    var mc = (typeof document !== 'undefined' && document.modelContext)
+          || (typeof navigator !== 'undefined' && navigator.modelContext)
+          || (typeof window !== 'undefined' && window.modelContext);
+    if (!mc || typeof mc.registerTool !== 'function') return;
+
+    var EDITOR = '/app/';
+    var ok = function (data) {
+      return { content: [{ type: 'text', text: JSON.stringify(data) }], structuredContent: data };
+    };
+
+    var TOOLS = [
+      {
+        name: 'weave_about',
+        description:
+          'Read what WEAVE is, what it does, and how a person and an AI agent use it together: '
+          + 'a visual website builder whose editor is itself a WebMCP surface, where an agent reads '
+          + 'structured project state, proposes changes as one reviewable transaction, and a human '
+          + 'approves them before anything is applied or published.',
+        annotations: { title: 'About WEAVE', readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+        inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+        run: function () {
+          return ok({
+            ok: true,
+            name: 'WEAVE',
+            tagline: 'The website builder built for humans and agents.',
+            summary:
+              'A visual website builder in which a person and an AI agent author the same live project '
+              + 'through WebMCP. The human edits on a real canvas; the agent reads structured project '
+              + 'state rather than the DOM and proposes changes the human reviews, amends and applies.',
+            editorUrl: EDITOR,
+            repository: 'https://github.com/Aaditya1273/WEAVE',
+            license: 'AGPL-3.0-only',
+            openSource: true,
+            documentPrimitive: 'Real Next.js source — no proprietary format, no lock-in.',
+            capabilities: [
+              'ChangeSets — several edits proposed as one reviewable, atomically applied transaction',
+              'Revision pinning — a proposal built on stale state is refused, never applied blind',
+              'Human publish gate — an agent can request a publish; only a human click performs one',
+              'Agent-ready output — the published bundle ships its own capability manifest and runtime'
+            ]
+          });
+        }
+      },
+      {
+        name: 'weave_list_editor_tools',
+        description:
+          'List the WebMCP tools the WEAVE editor exposes once it is open, with what each one does and '
+          + 'whether it reads, writes, destroys content or requires human approval. Use this to find out '
+          + 'what an agent can actually do inside WEAVE before opening the editor.',
+        annotations: { title: 'List the editor’s tools', readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+        inputSchema: {
+          type: 'object',
+          properties: {
+            category: {
+              type: 'string',
+              enum: ['all', 'read', 'write', 'destructive', 'requires_approval'],
+              description: 'Filter by what the tools do. Defaults to all.'
+            }
+          },
+          additionalProperties: false
+        },
+        run: function (args) {
+          var want = (args && args.category) || 'all';
+          var t = [
+            { name: 'weave_get_context', kind: 'read', does: 'Project, page, revision, selection, typed sections and a bounded element tree with stable ids.' },
+            { name: 'weave_find_elements', kind: 'read', does: 'Search the page by text, layer name, tag, semantic role or section.' },
+            { name: 'weave_get_subtree', kind: 'read', does: 'One section or container in detail, to a requested depth.' },
+            { name: 'weave_get_element_styles', kind: 'read', does: 'Resolved as-rendered styles, inherited values included.' },
+            { name: 'weave_validate_site', kind: 'read', does: 'Real findings with element ids plus an explainable agent-readiness score.' },
+            { name: 'weave_explain_finding', kind: 'read', does: 'Turns a validation finding into concrete operations ready to propose.' },
+            { name: 'weave_diff_since', kind: 'read', does: 'What changed since a revision the agent read earlier.' },
+            { name: 'weave_add_section', kind: 'write', does: 'Inserts a designed section from the library.' },
+            { name: 'weave_update_element', kind: 'write', does: 'Text, layer name, visibility, allow-listed styles and attributes.' },
+            { name: 'weave_set_link', kind: 'write', does: 'Gives an element a destination, converting it to a real link first.' },
+            { name: 'weave_change_element_tag', kind: 'write', does: 'Retag to a semantic element; script, iframe and inputs are refused.' },
+            { name: 'weave_duplicate_element', kind: 'write', does: 'Copies an element and its children with fresh ids.' },
+            { name: 'weave_create_page', kind: 'write', does: 'Adds a real page and returns its route.' },
+            { name: 'weave_set_design_token', kind: 'write', does: 'Creates or updates a named brand value elements bind to.' },
+            { name: 'weave_animate_element', kind: 'write', does: 'Appear-on-scroll, hover or loop motion.' },
+            { name: 'weave_translate_element', kind: 'write', does: 'Writes an element’s text in another language.' },
+            { name: 'weave_add_comment', kind: 'write', does: 'Leaves a note for the human instead of editing.' },
+            { name: 'weave_undo', kind: 'write', does: 'Reverses the last change as one step.' },
+            { name: 'weave_delete_element', kind: 'destructive', does: 'Removes an element and its children; undoable.' },
+            { name: 'weave_delete_page', kind: 'destructive', does: 'Removes a page; the home page and the open page are refused.' },
+            { name: 'weave_remove_collection_item', kind: 'destructive', does: 'Deletes one item of structured content.' },
+            { name: 'weave_propose_changes', kind: 'requires_approval', does: 'Submits several operations as ONE reviewable ChangeSet. Nothing changes until the human applies it.' },
+            { name: 'weave_upsert_collection_item', kind: 'requires_approval', does: 'Adds or updates structured content.' },
+            { name: 'weave_create_component', kind: 'requires_approval', does: 'Promotes an element into a reusable component.' },
+            { name: 'weave_publish_site', kind: 'requires_approval', does: 'Requests a publish; only a human click performs one.' }
+          ];
+          var list = want === 'all' ? t : t.filter(function (x) { return x.kind === want; });
+          return ok({
+            ok: true,
+            totalInEditor: 48,
+            shown: list.length,
+            filter: want,
+            note: 'The editor registers all 48 on load. Open ' + EDITOR + ' to call them.',
+            tools: list
+          });
+        }
+      },
+      {
+        name: 'weave_open_editor',
+        description:
+          'Open the WEAVE editor, where the full set of authoring tools becomes available on a live '
+          + 'demo project. Navigates this page to the editor; nothing is created, changed or published.',
+        annotations: { title: 'Open the WEAVE editor', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+        inputSchema: {
+          type: 'object',
+          properties: {
+            inspector: {
+              type: 'boolean',
+              description: 'Open with the WebMCP Inspector showing the live runtime, capabilities and every tool schema.'
+            }
+          },
+          additionalProperties: false
+        },
+        run: function (args) {
+          var url = (args && args.inspector) ? EDITOR + '?weave=inspector' : EDITOR;
+          try { window.location.assign(url); } catch (e) { /* navigation blocked — the url is still returned */ }
+          return ok({ ok: true, navigatingTo: url, note: 'The editor registers its full tool surface on load.' });
+        }
+      }
+    ];
+
+    for (var i = 0; i < TOOLS.length; i++) {
+      (function (tool) {
+        try {
+          mc.registerTool({
+            name: tool.name,
+            description: tool.description,
+            inputSchema: tool.inputSchema,
+            annotations: tool.annotations,
+            execute: function (args) { return tool.run(args || {}); }
+          });
+        } catch (e) { /* one bad registration must never take the page down */ }
+      })(TOOLS[i]);
+    }
   })();
   </script>
 </body>

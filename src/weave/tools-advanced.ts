@@ -68,7 +68,12 @@ function resolveTarget(args: Record<string, unknown>): { id: string } | WeaveToo
   }
   const selection = store.get(selectedIdsAtom);
   if (selection.length === 0) {
-    return toolError('NO_TARGET', 'Nothing is selected. Pass element_id, or ask the human to select an element.');
+    // Actionable, not a dead end: an agent reaching this has the whole page
+    // available to it and just needs to name a target.
+    return toolError('NO_TARGET',
+      'This action needs an element. Pass element_id — call weave_find_elements to locate one '
+      + '(by text, role, tag or section) or weave_get_context for the page tree — or ask the '
+      + 'human to select something on the canvas.');
   }
   if (selection.length > 1) {
     return toolError('AMBIGUOUS_TARGET', `${selection.length} elements are selected. Pass element_id to choose one.`);
